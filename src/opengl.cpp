@@ -17,9 +17,9 @@
 #include "syslibs.h"
 #include "dxhook.h"
 #include "dxhelper.h"
-#include "gl\gl.h"
-#include "gl\wglext.h"
-#include "gl\glext.h"
+#include <gl\gl.h>
+#include "wglext.h"
+#include "glext.h"
 #include "float.h"
 #ifdef STRETCHBITMAPS
 #include <math.h>
@@ -730,8 +730,8 @@ static char *sglEnum(GLint t)
 		case GL_PROXY_TEXTURE_2D: p="GL_PROXY_TEXTURE_2D"; break;
 		case GL_TEXTURE_1D_ARRAY: p="GL_TEXTURE_1D_ARRAY"; break;
 		case GL_PROXY_TEXTURE_1D_ARRAY: p="GL_PROXY_TEXTURE_1D_ARRAY"; break;
-		case GL_TEXTURE_RECTANGLE: p="GL_TEXTURE_RECTANGLE"; break;
-		case GL_PROXY_TEXTURE_RECTANGLE: p="GL_PROXY_TEXTURE_RECTANGLE"; break;
+		case GL_TEXTURE_RECTANGLE_ARB: p="GL_TEXTURE_RECTANGLE_ARB"; break;
+		case GL_PROXY_TEXTURE_RECTANGLE_ARB: p="GL_PROXY_TEXTURE_RECTANGLE_ARB"; break;
 		case GL_TEXTURE_CUBE_MAP_POSITIVE_X: p="GL_TEXTURE_CUBE_MAP_POSITIVE_X"; break;
 		case GL_TEXTURE_CUBE_MAP_NEGATIVE_X: p="GL_TEXTURE_CUBE_MAP_NEGATIVE_X"; break;
 		case GL_TEXTURE_CUBE_MAP_POSITIVE_Y: p="GL_TEXTURE_CUBE_MAP_POSITIVE_Y"; break;

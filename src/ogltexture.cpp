@@ -10,8 +10,8 @@
 #include "dxwnd.h"
 #include "dxwcore.hpp"
 #include "syslibs.h"
-#include "gl\gl.h"
-#include "gl\glext.h"
+#include <gl/gl.h>
+#include "glext.h"
 #include "dxdds.h"
 #include "s3tc.h"
 //#include "stb_dxt.h"
@@ -848,7 +848,7 @@ void glHandleTexture(GLenum target, GLint internalFormat, GLenum format, GLsizei
 		//case GL_PROXY_TEXTURE_RECTANGLE:
 		//case GL_PROXY_TEXTURE_2D:
 		case GL_TEXTURE_2D:
-		case GL_TEXTURE_RECTANGLE:
+		case GL_TEXTURE_RECTANGLE_ARB:
 			switch(dxw.dwFlags5 & TEXTUREMASK){
 				case TEXTUREHIGHLIGHT: 
 					glTextureHighlight(internalFormat, format, width, height, type, data);
@@ -887,7 +887,7 @@ void glHandleCompressedTexture(GLenum target, GLint internalFormat, GLsizei widt
 		//case GL_PROXY_TEXTURE_RECTANGLE:
 		//case GL_PROXY_TEXTURE_2D:
 		case GL_TEXTURE_2D:
-		case GL_TEXTURE_RECTANGLE:
+		case GL_TEXTURE_RECTANGLE_ARB:
 			switch(dxw.dwFlags5 & TEXTUREMASK){
 				case TEXTUREHIGHLIGHT: 
 					glCompressedTextureHighlight(internalFormat, width, height, imageSize, data);

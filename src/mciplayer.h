@@ -31,9 +31,9 @@
 #define MCI_DATA_TRACK 1
 #define MCI_AUDIO_TRACK 2
 
-#ifdef WIN32
-#define snprintf _snprintf
-#endif
+//#ifdef WIN32
+//#define snprintf _snprintf
+//#endif
 
 struct track_info
 {

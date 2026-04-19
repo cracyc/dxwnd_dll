@@ -7,7 +7,6 @@
 //#define RECOVERDATAFORMAT TRUE // to become a flag?
 
 //#define TRACEALL	// hooks unnecessary methods for logging
-
 #include <windows.h>
 #include <dinput.h>
 #include "dxwnd.h"
@@ -17,6 +16,10 @@
 #include "dxhelper.h"
 #include "comvjoy.h"
 #include "stdio.h"
+
+#ifndef DIDFT_OPTIONAL
+#define DIDFT_OPTIONAL 0x80000000
+#endif
 
 extern BOOL WINAPI extGetCursorPos(LPPOINT);
 

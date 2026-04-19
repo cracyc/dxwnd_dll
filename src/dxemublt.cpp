@@ -2990,7 +2990,7 @@ static void Dither32(Pixel *p, unsigned int w, unsigned int h)
 
 	for(y = 0; y < h - 1; y ++){
 		for(x = 1; x < w - 1; x ++){
-			auto Pixel pixel = pixels(x,y);
+			Pixel pixel = pixels(x,y);
 
 			int NewR = (colorFactor * pixel.red / 255)   * (255 / colorFactor);
 			int NewG = (colorFactor * pixel.green / 255) * (255 / colorFactor);

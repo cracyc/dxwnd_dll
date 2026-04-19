@@ -16,8 +16,8 @@
 #include "dxhelper.h"
 #include "syslibs.h"
 #include <wingdi.h>
-#include <gl.h>
-#include <glext.h>
+#include <gl/gl.h>
+#include "glext.h"
 
 extern GetDC_Type pGetDCMethod();
 extern ReleaseDC_Type pReleaseDCMethod();

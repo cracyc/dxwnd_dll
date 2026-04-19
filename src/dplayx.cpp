@@ -7,7 +7,7 @@
 #include "dxhook.h"
 #include "dxhelper.h"
 #include "dplay.h"
-#include "dplayex.h"
+//#include "dplayex.h"
 
 #define DPLAYXBYPASS TRUE
 

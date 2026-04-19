@@ -95,7 +95,7 @@ See Also
 #include "dxwcore.hpp"
 #include "dxhook.h"
 #include "dxhelper.h"
-#include "dsetup/dsetup.h"
+#include "dsetup.h"
 
 //#define TRACEALL
 

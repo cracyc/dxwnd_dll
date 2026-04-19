@@ -18,7 +18,7 @@
 #include "stdio.h"
 
 // legacy removed items ???
-#ifndef XINPUT_KEYSTROKE
+#if(_WIN32_WINNT < _WIN32_WINNT_WIN8)
 typedef struct _XINPUT_KEYSTROKE {
     WORD VirtualKey;
     WCHAR Unicode;

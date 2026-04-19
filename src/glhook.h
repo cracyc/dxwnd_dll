@@ -1,4 +1,4 @@
-#include "gl.h"
+#include <gl/gl.h>
 
 extern void HookOpenGL(HMODULE);
 
