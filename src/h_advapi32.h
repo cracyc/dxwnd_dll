@@ -1,0 +1,107 @@
+/* ===================================================================
+type definitions
+====================================================================*/
+
+typedef LONG	(WINAPI *RegCloseKey_Type)(HKEY);
+typedef LONG	(WINAPI *RegCreateKeyA_Type)(HKEY, LPCSTR, PHKEY);
+typedef LONG	(WINAPI *RegCreateKeyW_Type)(HKEY, LPCWSTR, PHKEY);
+typedef LONG	(WINAPI *RegCreateKeyExA_Type)(HKEY, LPCSTR, DWORD, LPSTR, DWORD, REGSAM, LPSECURITY_ATTRIBUTES, PHKEY, LPDWORD);
+typedef LONG	(WINAPI *RegCreateKeyExW_Type)(HKEY, LPCWSTR, DWORD, LPWSTR, DWORD, REGSAM, LPSECURITY_ATTRIBUTES, PHKEY, LPDWORD);
+typedef LONG	(WINAPI *RegOpenKeyA_Type)(HKEY, LPCSTR, PHKEY);
+typedef LONG	(WINAPI *RegOpenKeyW_Type)(HKEY, LPCWSTR, PHKEY);
+typedef LONG	(WINAPI *RegOpenKeyExA_Type)(HKEY, LPCSTR, DWORD, REGSAM, PHKEY);
+typedef LONG	(WINAPI *RegOpenKeyExW_Type)(HKEY, LPCWSTR, DWORD, REGSAM, PHKEY);
+typedef LONG	(WINAPI *RegQueryValueA_Type)(HKEY, LPCSTR, LPSTR, PLONG);
+typedef LONG	(WINAPI *RegQueryValueW_Type)(HKEY, LPCWSTR, LPWSTR, PLONG);
+typedef LONG	(WINAPI *RegQueryValueExA_Type)(HKEY, LPCSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
+typedef LONG	(WINAPI *RegQueryValueExW_Type)(HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
+typedef LONG	(WINAPI *RegSetValueA_Type)(HKEY, LPCSTR, DWORD, LPCSTR, DWORD);
+typedef LONG	(WINAPI *RegSetValueW_Type)(HKEY, LPCWSTR, DWORD, LPCWSTR, DWORD);
+typedef LONG	(WINAPI *RegSetValueExA_Type)(HKEY, LPCSTR, DWORD, DWORD, const BYTE *, DWORD);
+typedef LONG	(WINAPI *RegSetValueExW_Type)(HKEY, LPCWSTR, DWORD, DWORD, const BYTE *, DWORD);
+typedef LONG	(WINAPI *RegFlushKey_Type)(HKEY);
+typedef LONG	(WINAPI *RegEnumValueA_Type)(HKEY, DWORD, LPSTR, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
+typedef LONG	(WINAPI *RegEnumValueW_Type)(HKEY, DWORD, LPWSTR, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
+typedef LONG	(WINAPI *RegEnumKeyA_Type)(HKEY, DWORD, LPSTR, DWORD);
+typedef LONG	(WINAPI *RegEnumKeyW_Type)(HKEY, DWORD, LPWSTR, DWORD);
+typedef LONG	(WINAPI *RegEnumKeyExA_Type)(HKEY, DWORD, LPSTR, LPDWORD, LPDWORD, LPSTR, LPDWORD, PFILETIME);
+typedef LONG	(WINAPI *RegEnumKeyExW_Type)(HKEY, DWORD, LPWSTR, LPDWORD, LPDWORD, LPWSTR, LPDWORD, PFILETIME);
+typedef LONG	(WINAPI *RegQueryInfoKeyA_Type)(HKEY, LPSTR, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, PFILETIME);
+typedef LONG	(WINAPI *RegQueryInfoKeyW_Type)(HKEY, LPWSTR, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, PFILETIME);
+typedef BOOL	(WINAPI *GetUserNameA_Type)(LPSTR, LPDWORD);
+typedef BOOL	(WINAPI *GetUserNameW_Type)(LPWSTR, LPDWORD);
+typedef LONG	(WINAPI *RegGetValueA_Type)(HKEY, LPCSTR, LPCSTR, DWORD, LPDWORD, PVOID, LPDWORD);
+typedef LONG	(WINAPI *RegGetValueW_Type)(HKEY, LPCWSTR, LPCWSTR, DWORD, LPDWORD, PVOID, LPDWORD);
+typedef LONG	(WINAPI *RegOpenCurrentUser_Type)(REGSAM, PHKEY);
+
+/* ===================================================================
+hooked APIs real pointers
+====================================================================*/
+
+DXWEXTERN RegCloseKey_Type pRegCloseKey DXWINITIALIZED;
+DXWEXTERN RegCreateKeyA_Type pRegCreateKeyA DXWINITIALIZED;
+DXWEXTERN RegCreateKeyW_Type pRegCreateKeyW DXWINITIALIZED;
+DXWEXTERN RegCreateKeyExA_Type pRegCreateKeyExA DXWINITIALIZED;
+DXWEXTERN RegCreateKeyExW_Type pRegCreateKeyExW DXWINITIALIZED;
+DXWEXTERN RegOpenKeyA_Type pRegOpenKeyA DXWINITIALIZED;
+DXWEXTERN RegOpenKeyW_Type pRegOpenKeyW DXWINITIALIZED;
+DXWEXTERN RegOpenKeyExA_Type pRegOpenKeyExA DXWINITIALIZED;
+DXWEXTERN RegOpenKeyExW_Type pRegOpenKeyExW DXWINITIALIZED;
+DXWEXTERN RegQueryValueA_Type pRegQueryValueA DXWINITIALIZED;
+DXWEXTERN RegQueryValueW_Type pRegQueryValueW DXWINITIALIZED;
+DXWEXTERN RegQueryValueExA_Type pRegQueryValueExA DXWINITIALIZED;
+DXWEXTERN RegQueryValueExW_Type pRegQueryValueExW DXWINITIALIZED;
+DXWEXTERN RegSetValueA_Type pRegSetValueA;
+DXWEXTERN RegSetValueW_Type pRegSetValueW;
+DXWEXTERN RegSetValueExA_Type pRegSetValueExA DXWINITIALIZED;
+DXWEXTERN RegSetValueExW_Type pRegSetValueExW DXWINITIALIZED;
+DXWEXTERN RegFlushKey_Type pRegFlushKey;
+DXWEXTERN RegEnumValueA_Type pRegEnumValueA;
+DXWEXTERN RegEnumValueW_Type pRegEnumValueW;
+DXWEXTERN RegEnumKeyA_Type pRegEnumKeyA;
+DXWEXTERN RegEnumKeyW_Type pRegEnumKeyW;
+DXWEXTERN RegEnumKeyExA_Type pRegEnumKeyExA;
+DXWEXTERN RegEnumKeyExW_Type pRegEnumKeyExW;
+DXWEXTERN RegQueryInfoKeyA_Type pRegQueryInfoKeyA;
+DXWEXTERN RegQueryInfoKeyW_Type pRegQueryInfoKeyW;
+DXWEXTERN GetUserNameA_Type pGetUserNameA;
+DXWEXTERN GetUserNameW_Type pGetUserNameW;
+DXWEXTERN RegGetValueA_Type pRegGetValueA;
+DXWEXTERN RegGetValueW_Type pRegGetValueW;
+DXWEXTERN RegOpenCurrentUser_Type pRegOpenCurrentUser;
+
+/* ===================================================================
+hook procedures (possibly more than one per each API...)
+====================================================================*/
+
+extern LONG	WINAPI extRegCloseKey(HKEY);
+extern LONG	WINAPI extRegCreateKeyA(HKEY, LPCSTR, PHKEY);
+extern LONG	WINAPI extRegCreateKeyW(HKEY, LPCWSTR, PHKEY);
+extern LONG	WINAPI extRegCreateKeyExA(HKEY, LPCSTR, DWORD, LPSTR, DWORD, REGSAM, LPSECURITY_ATTRIBUTES, PHKEY, LPDWORD);
+extern LONG	WINAPI extRegCreateKeyExW(HKEY, LPCWSTR, DWORD, LPWSTR, DWORD, REGSAM, LPSECURITY_ATTRIBUTES, PHKEY, LPDWORD);
+extern LONG	WINAPI extRegOpenKeyA(HKEY, LPCSTR, PHKEY);
+extern LONG	WINAPI extRegOpenKeyW(HKEY, LPCWSTR, PHKEY);
+extern LONG	WINAPI extRegOpenKeyExA(HKEY, LPCSTR, DWORD, REGSAM, PHKEY);
+extern LONG	WINAPI extRegOpenKeyExW(HKEY, LPCWSTR, DWORD, REGSAM, PHKEY);
+extern LONG	WINAPI extRegQueryValueA(HKEY, LPCSTR, LPSTR, PLONG);
+extern LONG	WINAPI extRegQueryValueW(HKEY, LPCWSTR, LPWSTR, PLONG);
+extern LONG	WINAPI extRegQueryValueExA(HKEY, LPCSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
+extern LONG	WINAPI extRegQueryValueExW(HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
+extern LONG WINAPI extRegSetValueA(HKEY, LPCSTR, DWORD, LPCSTR, DWORD);
+extern LONG WINAPI extRegSetValueW(HKEY, LPCWSTR, DWORD, LPCWSTR, DWORD);
+extern LONG	WINAPI extRegSetValueExA(HKEY, LPCSTR, DWORD, DWORD, const BYTE *, DWORD);
+extern LONG	WINAPI extRegSetValueExW(HKEY, LPCWSTR, DWORD, DWORD, const BYTE *, DWORD);
+extern LONG WINAPI extRegFlushKey(HKEY);
+extern LONG WINAPI extRegEnumValueA(HKEY, DWORD, LPSTR, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
+extern LONG WINAPI extRegEnumValueW(HKEY, DWORD, LPWSTR, LPDWORD, LPDWORD, LPDWORD, LPBYTE, LPDWORD);
+extern LONG WINAPI extRegEnumKeyA(HKEY, DWORD, LPSTR, DWORD);
+extern LONG WINAPI extRegEnumKeyW(HKEY, DWORD, LPWSTR, DWORD);
+extern LONG WINAPI extRegEnumKeyExA(HKEY, DWORD, LPSTR, LPDWORD, LPDWORD, LPSTR, LPDWORD, PFILETIME);
+extern LONG WINAPI extRegEnumKeyExW(HKEY, DWORD, LPWSTR, LPDWORD, LPDWORD, LPWSTR, LPDWORD, PFILETIME);
+extern LONG WINAPI extRegQueryInfoKeyA(HKEY, LPSTR, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, PFILETIME);
+extern LONG WINAPI extRegQueryInfoKeyW(HKEY, LPWSTR, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, LPDWORD, PFILETIME);
+extern BOOL WINAPI extGetUserNameA(LPSTR, LPDWORD);
+extern BOOL WINAPI extGetUserNameW(LPWSTR, LPDWORD);
+extern LONG WINAPI extRegGetValueA(HKEY, LPCSTR, LPCSTR, DWORD, LPDWORD, PVOID, LPDWORD);
+extern LONG WINAPI extRegGetValueW(HKEY, LPCWSTR, LPCWSTR, DWORD, LPDWORD, PVOID, LPDWORD);
+extern LONG WINAPI extRegOpenCurrentUser(REGSAM, PHKEY);

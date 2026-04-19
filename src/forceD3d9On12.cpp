@@ -1,0 +1,213 @@
+/*
+DxWnd v2.05.91
+
+This code was made possible thanks to Narzoul's support that very kindly 
+explained how it is possible to simulate a STATUS_INVALID_PARAMETER error code
+from the D3DKMTQueryAdapterInfo call to force the replacement of native D3D9 
+with D3D9on12.dll 
+Most of the code was adapter from DDrawCompat 4.0 source code.
+*/
+
+#include <windows.h>
+#include <ddraw.h>
+#include "dxwnd.h"
+#include "dxhook.h"
+#include "ddrawi.h"
+#include "dxwcore.hpp"
+#include "stdio.h" 
+#include "hddraw.h"
+#include "dxhelper.h"
+#include "syslibs.h"
+
+#define LPGENERIC(type) LPVOID
+#define STATUS_INVALID_PARAMETER (0xC000000D)
+
+extern void hookIatFunction(HMODULE, const char *, void *);
+
+typedef enum _KMTQUERYADAPTERINFOTYPE {
+  KMTQAITYPE_UMDRIVERPRIVATE,
+  KMTQAITYPE_UMDRIVERNAME,
+  KMTQAITYPE_UMOPENGLINFO,
+  KMTQAITYPE_GETSEGMENTSIZE,
+  KMTQAITYPE_ADAPTERGUID,
+  KMTQAITYPE_FLIPQUEUEINFO,
+  KMTQAITYPE_ADAPTERADDRESS,
+  KMTQAITYPE_SETWORKINGSETINFO,
+  KMTQAITYPE_ADAPTERREGISTRYINFO,
+  KMTQAITYPE_CURRENTDISPLAYMODE,
+  KMTQAITYPE_MODELIST,
+  KMTQAITYPE_CHECKDRIVERUPDATESTATUS,
+  KMTQAITYPE_VIRTUALADDRESSINFO,
+  KMTQAITYPE_DRIVERVERSION,
+  KMTQAITYPE_ADAPTERTYPE,
+  KMTQAITYPE_OUTPUTDUPLCONTEXTSCOUNT,
+  KMTQAITYPE_WDDM_1_2_CAPS,
+  KMTQAITYPE_UMD_DRIVER_VERSION,
+  KMTQAITYPE_DIRECTFLIP_SUPPORT,
+  KMTQAITYPE_MULTIPLANEOVERLAY_SUPPORT,
+  KMTQAITYPE_DLIST_DRIVER_NAME,
+  KMTQAITYPE_WDDM_1_3_CAPS,
+  KMTQAITYPE_MULTIPLANEOVERLAY_HUD_SUPPORT,
+  KMTQAITYPE_WDDM_2_0_CAPS,
+  KMTQAITYPE_NODEMETADATA,
+  KMTQAITYPE_CPDRIVERNAME,
+  KMTQAITYPE_XBOX,
+  KMTQAITYPE_INDEPENDENTFLIP_SUPPORT,
+  KMTQAITYPE_MIRACASTCOMPANIONDRIVERNAME,
+  KMTQAITYPE_PHYSICALADAPTERCOUNT,
+  KMTQAITYPE_PHYSICALADAPTERDEVICEIDS,
+  KMTQAITYPE_DRIVERCAPS_EXT,
+  KMTQAITYPE_QUERY_MIRACAST_DRIVER_TYPE,
+  KMTQAITYPE_QUERY_GPUMMU_CAPS,
+  KMTQAITYPE_QUERY_MULTIPLANEOVERLAY_DECODE_SUPPORT,
+  KMTQAITYPE_QUERY_HW_PROTECTION_TEARDOWN_COUNT,
+  KMTQAITYPE_QUERY_ISBADDRIVERFORHWPROTECTIONDISABLED,
+  KMTQAITYPE_MULTIPLANEOVERLAY_SECONDARY_SUPPORT,
+  KMTQAITYPE_INDEPENDENTFLIP_SECONDARY_SUPPORT,
+  KMTQAITYPE_PANELFITTER_SUPPORT,
+  KMTQAITYPE_PHYSICALADAPTERPNPKEY,
+  KMTQAITYPE_GETSEGMENTGROUPSIZE,
+  KMTQAITYPE_MPO3DDI_SUPPORT,
+  KMTQAITYPE_HWDRM_SUPPORT,
+  KMTQAITYPE_MPOKERNELCAPS_SUPPORT,
+  KMTQAITYPE_MULTIPLANEOVERLAY_STRETCH_SUPPORT,
+  KMTQAITYPE_GET_DEVICE_VIDPN_OWNERSHIP_INFO,
+  KMTQAITYPE_QUERYREGISTRY,
+  KMTQAITYPE_KMD_DRIVER_VERSION,
+  KMTQAITYPE_BLOCKLIST_KERNEL,
+  KMTQAITYPE_BLOCKLIST_RUNTIME,
+  KMTQAITYPE_ADAPTERGUID_RENDER,
+  KMTQAITYPE_ADAPTERADDRESS_RENDER,
+  KMTQAITYPE_ADAPTERREGISTRYINFO_RENDER,
+  KMTQAITYPE_CHECKDRIVERUPDATESTATUS_RENDER,
+  KMTQAITYPE_DRIVERVERSION_RENDER,
+  KMTQAITYPE_ADAPTERTYPE_RENDER,
+  KMTQAITYPE_WDDM_1_2_CAPS_RENDER,
+  KMTQAITYPE_WDDM_1_3_CAPS_RENDER,
+  KMTQAITYPE_QUERY_ADAPTER_UNIQUE_GUID,
+  KMTQAITYPE_NODEPERFDATA,
+  KMTQAITYPE_ADAPTERPERFDATA,
+  KMTQAITYPE_ADAPTERPERFDATA_CAPS,
+  KMTQUITYPE_GPUVERSION,
+  KMTQAITYPE_DRIVER_DESCRIPTION,
+  KMTQAITYPE_DRIVER_DESCRIPTION_RENDER,
+  KMTQAITYPE_SCANOUT_CAPS,
+  KMTQAITYPE_DISPLAY_UMDRIVERNAME,
+  KMTQAITYPE_PARAVIRTUALIZATION_RENDER,
+  KMTQAITYPE_SERVICENAME,
+  KMTQAITYPE_WDDM_2_7_CAPS,
+  KMTQAITYPE_TRACKEDWORKLOAD_SUPPORT,
+  KMTQAITYPE_HYBRID_DLIST_DLL_SUPPORT,
+  KMTQAITYPE_DISPLAY_CAPS,
+  KMTQAITYPE_WDDM_2_9_CAPS,
+  KMTQAITYPE_CROSSADAPTERRESOURCE_SUPPORT,
+  KMTQAITYPE_WDDM_3_0_CAPS,
+  KMTQAITYPE_WSAUMDIMAGENAME,
+  KMTQAITYPE_VGPUINTERFACEID,
+  KMTQAITYPE_WDDM_3_1_CAPS
+} KMTQUERYADAPTERINFOTYPE;
+
+typedef enum _KMTUMDVERSION {
+  KMTUMDVERSION_DX9,
+  KMTUMDVERSION_DX10,
+  KMTUMDVERSION_DX11,
+  KMTUMDVERSION_DX12,
+  KMTUMDVERSION_DX12_WSA32,
+  KMTUMDVERSION_DX12_WSA64,
+  NUM_KMTUMDVERSIONS
+} KMTUMDVERSION;
+
+typedef struct _D3DKMT_QUERYADAPTERINFO {
+  LPGENERIC(D3DKMT_HANDLE) hAdapter;
+  //D3DKMT_HANDLE hAdapter;
+  KMTQUERYADAPTERINFOTYPE Type;
+  VOID *pPrivateDriverData;
+  UINT PrivateDriverDataSize;
+} D3DKMT_QUERYADAPTERINFO;
+
+typedef struct _D3DKMT_UMDFILENAMEINFO {
+	KMTUMDVERSION Version;
+	WCHAR UmdFileName[MAX_PATH];
+} D3DKMT_UMDFILENAMEINFO;
+
+typedef struct _D3DKMT_SEGMENTSIZEINFO
+{
+	ULONGLONG DedicatedVideoMemorySize;
+	ULONGLONG DedicatedSystemMemorySize;
+	ULONGLONG SharedSystemMemorySize;
+} D3DKMT_SEGMENTSIZEINFO;
+
+typedef NTSTATUS (WINAPI *D3DKMTQueryAdapterInfo_Type)(const D3DKMT_QUERYADAPTERINFO *);
+D3DKMTQueryAdapterInfo_Type pD3DKMTQueryAdapterInfo;
+
+NTSTATUS WINAPI extD3DKMTQueryAdapterInfo(const D3DKMT_QUERYADAPTERINFO *pData)
+{
+	ApiName("D3DKMTQueryAdapterInfo");
+
+	OutTrace("%s: pData=%#x hAdapter=%#x type=%d\n", ApiRef, pData, pData->hAdapter, pData->Type);
+	NTSTATUS result = (*pD3DKMTQueryAdapterInfo)(pData);
+	if(SUCCEEDED(result)){
+		OutTrace("%s: pData=%#x hAdapter=%#x type=%d PrivateDriverDataSize=%d pPrivateDriverData=%#x\n", 
+			ApiRef, pData, pData->hAdapter, pData->Type, pData->PrivateDriverDataSize, pData->pPrivateDriverData);
+	}
+	else {
+		OutTrace("%s: ERROR ret=%#x\n", ApiRef, result);
+		return result;
+	}
+
+
+	switch (pData->Type){
+		case KMTQAITYPE_UMDRIVERNAME:
+			if (KMTUMDVERSION_DX9 == static_cast<D3DKMT_UMDFILENAMEINFO*>(pData->pPrivateDriverData)->Version){
+				OutTrace("%s: emulate STATUS_INVALID_PARAMETER\n", ApiRef);
+				return STATUS_INVALID_PARAMETER;
+			}
+			break;
+
+#if 0
+		case KMTQAITYPE_GETSEGMENTSIZE:
+			{
+				D3DKMT_SEGMENTSIZEINFO *info = static_cast<D3DKMT_SEGMENTSIZEINFO*>(pData->pPrivateDriverData);
+				info->DedicatedVideoMemorySize += info->DedicatedSystemMemorySize;
+				info->DedicatedSystemMemorySize = 0;
+
+				const ULONGLONG maxMem = 0x3FFF0000;
+				if (info->DedicatedVideoMemorySize < maxMem){
+					ULONGLONG addedMem = min(maxMem - info->DedicatedVideoMemorySize, info->SharedSystemMemorySize);
+					info->DedicatedVideoMemorySize += addedMem;
+					info->SharedSystemMemorySize -= addedMem;
+				}
+
+				info->DedicatedVideoMemorySize = min(info->DedicatedVideoMemorySize, maxMem);
+				info->SharedSystemMemorySize = min(info->SharedSystemMemorySize, maxMem);
+			}
+			break;
+#endif
+	}
+
+	return result;
+}
+
+void ddForceD3D9on12()
+{
+	HINSTANCE hinst;
+	OutTrace("ddForceD3D9on12\n");
+
+	hinst=(*pLoadLibraryA)("gdi32.dll");
+	if(!hinst){
+		OutTrace("LoadLibrary gdi32.dll ERROR err=%d @%d\n", GetLastError(), __LINE__);
+		return;
+	}
+	
+	pD3DKMTQueryAdapterInfo = (D3DKMTQueryAdapterInfo_Type)(*pGetProcAddress)(hinst, "D3DKMTQueryAdapterInfo");
+	(*pFreeLibrary)(hinst);
+
+	hinst=(*pLoadLibraryA)("ddraw.dll");
+	if(!hinst){
+		OutTrace("LoadLibrary ddraw.dll ERROR err=%d @%d\n", GetLastError(), __LINE__);
+		return;
+	}
+	hookIatFunction(hinst, "D3DKMTQueryAdapterInfo", extD3DKMTQueryAdapterInfo);
+	(*pFreeLibrary)(hinst);
+
+}
