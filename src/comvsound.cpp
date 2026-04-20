@@ -185,8 +185,10 @@ ULONG IFakeDirectSound::Release(void)
 static DWORD getsize(LPCDSBUFFERDESC pcDSBufferDesc)
 {
 	DWORD dwSize;
+	hookSemaphore = TRUE;
   __try  { dwSize = pcDSBufferDesc->dwSize; }
   __except(EXCEPTION_EXECUTE_HANDLER) { dwSize = 0; };
+  	hookSemaphore = FALSE;
   return dwSize;
 }
 

@@ -1550,7 +1550,7 @@ LONG WINAPI extGetWindowLong(char *ApiName, GetWindowLong_Type pGetWindowLong, H
 
 	res=(*pGetWindowLong)(hwnd, nIndex);
 
-	OutTraceGDI("%s: hwnd=%#x, Index=%#x(%s) res=%#x\n", ApiName, hwnd, nIndex, ExplainSetWindowIndex(nIndex), res);
+	OutDebugGDI("%s: hwnd=%#x, Index=%#x(%s) res=%#x\n", ApiName, hwnd, nIndex, ExplainSetWindowIndex(nIndex), res);
 
 	// v2.04.46: handle DWL_DLGPROC only when flag is set
 	if((nIndex==GWL_WNDPROC) ||
@@ -1558,11 +1558,11 @@ LONG WINAPI extGetWindowLong(char *ApiName, GetWindowLong_Type pGetWindowLong, H
 		WNDPROC wp;
 		wp=dxwws.GetProc(hwnd);
 		if(wp){
-			OutTraceGDI("%s: remapping WindowProc res=%#x -> %#x\n", ApiName, res, (LONG)wp);
+			OutDebugGDI("%s: remapping WindowProc res=%#x -> %#x\n", ApiName, res, (LONG)wp);
 			res=(LONG)wp; // if not found, don't alter the value.
 		}
 		else {
-			OutTraceGDI("%s: keep original WindowProc res=%#x\n", ApiName, res);
+			OutDebugGDI("%s: keep original WindowProc res=%#x\n", ApiName, res);
 		}
 	}
 
@@ -1772,6 +1772,11 @@ BOOL WINAPI extSetWindowPos(HWND hwnd, HWND hWndInsertAfter, int X, int Y, int c
 		hWndInsertAfter, 
 		X, Y, cx, cy, 
 		uFlags, ExplainSWPFlags(uFlags));
+
+	if((dxw.dwFlags9 & KILLBLACKWIN) && (hwnd==(HWND)FAKEKILLEDWIN)){
+		OutTraceGDI("%s: ignore killed window\n", ApiRef);
+		return TRUE;
+	}
 
 	if(InMainWinCreation) MovedInCallback = TRUE;
 
@@ -2611,6 +2616,14 @@ static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, LPMSG lpMs
 {
 	BOOL res;
 	POINT point;
+
+	// v2.06.14: used in several racing games of "NASCAR Revolution" series.
+	if(dxw.dwFlags20 & GETALLMESSAGES) {
+		if(hwnd) {
+			OutTraceW("%s: forcing hwnd=NULL\n", ApiRef);
+			hwnd = NULL;
+		}
+	}
 
 	res=(*pGetMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax);
 	OutTraceW("%s: lpmsg=%#x hwnd=%#x filter=(%#x-%#x) msg=%#x(%s) wparam=%#x, lparam=%#x pt=(%d,%d) res=%#x\n", 
@@ -3849,7 +3862,7 @@ HWND WINAPI extCreateWindowExA(
 	}	
 	// v2.05.41 fix: don't strcmp atoms!
 	if((dxw.dwFlags9 & KILLBLACKWIN) && ((DWORD)lpClassName & 0xFFFF0000) && (
-		!strcmp(lpClassName, "DDFullBck") ||				// on "Three Dirty Dwarves" ...
+		!strcmp(lpClassName, "DDFullBck") ||				// on "Three Dirty Dwarves", "Ecco the Dolphin" ...
 		!strcmp(lpClassName, "Kane & Lynch 2 window 2") ||	// on "Kane & Lynch 2", obviously ...
 		!strcmp(lpClassName, "propsfxblack") ||				// on "Crashday" (window name = "black")
 		//!strcmp(lpClassName, "Editor") ||					// on "Bloodline"
@@ -9106,12 +9119,12 @@ BOOL WINAPI extSetRect(LPRECT lprc, int xLeft, int yTop, int xRight, int yBottom
 	ApiName("SetRect");
 	ret = (*pSetRect)(lprc, xLeft, yTop, xRight, yBottom);
 	if(ret) {
-		OutTrace("%s: rect=(%d,%d)-(%d,%d)\n",
+		OutTraceGDI("%s: rect=(%d,%d)-(%d,%d)\n",
 		ApiRef,
 		lprc->left, lprc->top, lprc->right, lprc->bottom);
 	} 
 	else {
-		OutTrace("%s: ERROR err=%d\n", ApiRef, GetLastError());
+		OutTraceGDI("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	}
 	return ret;
 }
@@ -9122,12 +9135,12 @@ BOOL WINAPI extSetRectEmpty(LPRECT lprc)
 	ApiName("SetRectEmpty");
 	ret = (*pSetRectEmpty)(lprc);
 	if(ret) {
-		OutTrace("%s: rect=(%d,%d)-(%d,%d)\n",
+		OutTraceGDI("%s: rect=(%d,%d)-(%d,%d)\n",
 		ApiRef,
 		lprc->left, lprc->top, lprc->right, lprc->bottom);
 	} 
 	else {
-		OutTrace("%s: ERROR err=%d\n", ApiRef, GetLastError());
+		OutTraceGDI("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	}
 	return ret;
 }
@@ -9138,13 +9151,13 @@ BOOL WINAPI extOffsetRect(LPRECT lprc, int dx, int dy)
 	ApiName("OffsetRect");
 	ret = (*pOffsetRect)(lprc, dx, dy);
 	if(ret) {
-		OutTrace("%s: delta=(%d,%d) rect=(%d,%d)-(%d,%d)\n",
+		OutTraceGDI("%s: delta=(%d,%d) rect=(%d,%d)-(%d,%d)\n",
 		ApiRef,
 		dx, dy,
 		lprc->left, lprc->top, lprc->right, lprc->bottom);
 	} 
 	else {
-		OutTrace("%s: ERROR err=%d\n", ApiRef, GetLastError());
+		OutTraceGDI("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	}
 	return ret;
 }
@@ -9155,13 +9168,13 @@ BOOL WINAPI extInflateRect(LPRECT lprc, int dx, int dy)
 	ApiName("InflateRect");
 	ret = (*pInflateRect)(lprc, dx, dy);
 	if(ret) {
-		OutTrace("%s: delta=(%d,%d) rect=(%d,%d)-(%d,%d)\n",
+		OutTraceGDI("%s: delta=(%d,%d) rect=(%d,%d)-(%d,%d)\n",
 		ApiRef,
 		dx, dy,
 		lprc->left, lprc->top, lprc->right, lprc->bottom);
 	} 
 	else {
-		OutTrace("%s: ERROR err=%d\n", ApiRef, GetLastError());
+		OutTraceGDI("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	}
 	return ret;
 }
@@ -9170,17 +9183,17 @@ BOOL WINAPI extSubtractRect(LPRECT lprcDst, CONST RECT *lprcSrc1, CONST RECT *lp
 {
 	BOOL ret;
 	ApiName("SubtractRect");
-	OutTrace("%s: rect1=(%d,%d)-(%d,%d)\n", 
+	OutTraceGDI("%s: rect1=(%d,%d)-(%d,%d)\n", 
 		ApiRef, lprcSrc1->left, lprcSrc1->top, lprcSrc1->right, lprcSrc1->bottom);
-	OutTrace("%s: rect2=(%d,%d)-(%d,%d)\n", 
+	OutTraceGDI("%s: rect2=(%d,%d)-(%d,%d)\n", 
 		ApiRef, lprcSrc2->left, lprcSrc2->top, lprcSrc2->right, lprcSrc2->bottom);
 	ret = (*pSubtractRect)(lprcDst, lprcSrc1, lprcSrc2);
 	if(ret) {
-		OutTrace("%s: dest=(%d,%d)-(%d,%d)\n", 
+		OutTraceGDI("%s: dest=(%d,%d)-(%d,%d)\n", 
 			ApiRef, lprcDst->left, lprcDst->top, lprcDst->right, lprcDst->bottom);
 	} 
 	else {
-		OutTrace("%s: ERROR err=%d\n", ApiRef, GetLastError());
+		OutTraceGDI("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	}
 	return ret;
 }
@@ -9189,17 +9202,17 @@ BOOL WINAPI extUnionRect(LPRECT lprcDst, CONST RECT *lprcSrc1, CONST RECT *lprcS
 {
 	BOOL ret;
 	ApiName("UnionRect");
-	OutTrace("%s: rect1=(%d,%d)-(%d,%d)\n", 
+	OutTraceGDI("%s: rect1=(%d,%d)-(%d,%d)\n", 
 		ApiRef, lprcSrc1->left, lprcSrc1->top, lprcSrc1->right, lprcSrc1->bottom);
-	OutTrace("%s: rect2=(%d,%d)-(%d,%d)\n", 
+	OutTraceGDI("%s: rect2=(%d,%d)-(%d,%d)\n", 
 		ApiRef, lprcSrc2->left, lprcSrc2->top, lprcSrc2->right, lprcSrc2->bottom);
 	ret = (*pUnionRect)(lprcDst, lprcSrc1, lprcSrc2);
 	if(ret) {
-		OutTrace("%s: dest=(%d,%d)-(%d,%d)\n", 
+		OutTraceGDI("%s: dest=(%d,%d)-(%d,%d)\n", 
 			ApiRef, lprcDst->left, lprcDst->top, lprcDst->right, lprcDst->bottom);
 	} 
 	else {
-		OutTrace("%s: ERROR err=%d\n", ApiRef, GetLastError());
+		OutTraceGDI("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	}
 	return ret;
 }
@@ -9208,9 +9221,9 @@ BOOL WINAPI extIntersectRect(LPRECT lprcDst, CONST RECT *lprcSrc1, CONST RECT *l
 {
 	BOOL ret;
 	ApiName("IntersectRect");
-	OutTrace("%s: rect1=(%d,%d)-(%d,%d)\n", 
+	OutTraceGDI("%s: rect1=(%d,%d)-(%d,%d)\n", 
 		ApiRef, lprcSrc1->left, lprcSrc1->top, lprcSrc1->right, lprcSrc1->bottom);
-	OutTrace("%s: rect2=(%d,%d)-(%d,%d)\n", 
+	OutTraceGDI("%s: rect2=(%d,%d)-(%d,%d)\n", 
 		ApiRef, lprcSrc2->left, lprcSrc2->top, lprcSrc2->right, lprcSrc2->bottom);
 	ret = (*pIntersectRect)(lprcDst, lprcSrc1, lprcSrc2);
 	if(ret) {
@@ -9228,7 +9241,7 @@ BOOL WINAPI extIsRectEmpty(CONST RECT *lprc)
 	BOOL ret;
 	ApiName("IsRectEmpty");
 	ret = (*pIsRectEmpty)(lprc);
-	OutTrace("%s: rect=(%d,%d)-(%d,%d) ret=%#x(%s)\n",
+	OutTraceGDI("%s: rect=(%d,%d)-(%d,%d) ret=%#x(%s)\n",
 		ApiRef,
 		lprc->left, lprc->top, lprc->right, lprc->bottom,
 		ret, ret ? "YES" : "NO");
@@ -9240,7 +9253,7 @@ BOOL WINAPI extCopyRect(LPRECT lprcDst, CONST RECT *lprcSrc)
 	BOOL ret;
 	ApiName("CopyRect");
 	ret = (*pCopyRect)(lprcDst, lprcSrc);
-	OutTrace("%s: rect=(%d,%d)-(%d,%d) ret=%#x(%s)\n",
+	OutTraceGDI("%s: rect=(%d,%d)-(%d,%d) ret=%#x(%s)\n",
 		ApiRef,
 		lprcSrc->left, lprcSrc->top, lprcSrc->right, lprcSrc->bottom,
 		ret, ret ? "YES" : "NO");

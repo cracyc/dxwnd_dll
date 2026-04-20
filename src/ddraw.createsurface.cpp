@@ -1211,14 +1211,14 @@ HRESULT WINAPI extCreateSurface(ApiArg, int dxversion, CreateSurface_Type pCreat
 		}
 	}
 
+	memcpy(&ddsd, lpddsd, lpddsd->dwSize); // Copy
+
 	//GHO workaround (needed for WarWind, Rogue Spear):
-	if (lpddsd->dwFlags && !(lpddsd->dwFlags & 0x1)){
+	if (ddsd.dwFlags && !(ddsd.dwFlags & 0x1)){
 		OutTraceDW("%s: fixing illegal dwFlags value: %#x -> %#x\n",
 			ApiRef, lpddsd->dwFlags, (lpddsd->dwFlags | DDSD_CAPS));
 		lpddsd->dwFlags |= DDSD_CAPS;
 	}
-
-	memcpy(&ddsd, lpddsd, lpddsd->dwSize); // Copy
 
 	// v2.02.38: this is odd: in "Star Force Deluxe" there is no PRIMARY surface, but a surface with 
 	// 0 flags and 0 capabilities serves for this purpose. Is it a side-effect of old ddraw releases?

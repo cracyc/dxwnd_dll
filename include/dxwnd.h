@@ -673,6 +673,11 @@
 #define HANDLECDLOCK		0x00000002 // unprotect CD-Lock protection
 #define DISABLEGHOSTING		0x00000004 // Disable Windows ghosting feature 
 #define MINIMUMRES			0x00000008 // minimum supported resolution
+#define ALTERNATEVRETRACE	0x00000010 // simulate a vertical retrace status change on interrupt 3DA
+#define SUPPRESSBLTFX		0x00000020 // zero-es the lpddbltfx->dwDDFX flags
+#define EMULATEXMIRRORING	0x00000040 // emulates a X mirrored Bld using StretchBlt
+#define EMULATEYMIRRORING	0x00000080 // emulates a Y mirrored Bld using StretchBlt
+#define GETALLMESSAGES		0x00000100 // ....
 
 // debug Dflags DWORD:
 #define CPUVENDORMASK		0x00000007

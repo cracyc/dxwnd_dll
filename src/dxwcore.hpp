@@ -1085,3 +1085,4 @@ extern dxwFlipChain dxwPrimaryFlipChain;
 extern dxwFlipChain dxwOverlayFlipChain;
 extern void gShowHideTaskBar(BOOL);
 extern void ReHook();
+extern BOOL hookSemaphore;

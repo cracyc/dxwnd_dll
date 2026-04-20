@@ -292,6 +292,7 @@ char *ExplainWinMessage(DWORD c)
 		case BM_SETIMAGE:				eb="BM_SETIMAGE"; break;
 		case BM_SETDONTCLICK:			eb="BM_SETDONTCLICK"; break;
 
+		/*
 		case SPI_GETTOGGLEKEYS:	eb="SPI_GETTOGGLEKEYS"; break;
 		case SPI_SETTOGGLEKEYS:	eb="SPI_SETTOGGLEKEYS"; break;
 		case SPI_GETMOUSEKEYS:	eb="SPI_GETMOUSEKEYS"; break;
@@ -318,6 +319,7 @@ char *ExplainWinMessage(DWORD c)
 		case SPI_SETWHEELSCROLLCHARS:	eb="SPI_SETWHEELSCROLLCHARS"; break;
 		case SPI_GETSHOWIMEUI:	eb="SPI_GETSHOWIMEUI"; break;
 		case SPI_SETSHOWIMEUI :	eb="SPI_SETSHOWIMEUI"; break;
+		*/
 
 		// reported by Wine
 		case 0x0401: 					eb="SB_SETTEXTA/TB_ENABLEBUTTON/..."; break; 

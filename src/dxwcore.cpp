@@ -372,6 +372,7 @@ void dxwCore::InitTarget(TARGETMAP *target)
 	dwFlags18= target->flags18;
 	dwFlags19= target->flags19;
 	dwFlags20= target->flags20;
+	dwFlags20 |= ALTERNATEVRETRACE; // fixed for now ...
 	dwTFlags = target->tflags;
 	dwTFlags2 = target->tflags2;
 	dwDFlags = target->dflags;
