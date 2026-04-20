@@ -110,6 +110,10 @@ int CDECL ext_mkdir(const char *);
 typedef char * (CDECL *_fullpath_Type)(char *, const char *, size_t);
 _fullpath_Type p_fullpath;
 char * CDECL ext_fullpath(char *, const char *, size_t);
+
+typedef wchar_t * (CDECL *_wfullpath_Type)(wchar_t *, const wchar_t *, size_t);
+_wfullpath_Type p_wfullpath;
+wchar_t * CDECL ext_wfullpath(wchar_t *, const wchar_t *, size_t);
 #endif // TRACEALL
 
 _locale_t curLocale = NULL;
@@ -137,6 +141,7 @@ static HookEntryEx_Type HooksFiles[]={
 	{HOOK_IAT_CANDIDATE, 0x0000, "_fdopen", (FARPROC)NULL, (FARPROC *)&p_fdopen, (FARPROC)ext_fdopen},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_mkdir", (FARPROC)NULL, (FARPROC *)&p_mkdir, (FARPROC)ext_mkdir},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_fullpath", (FARPROC)NULL, (FARPROC *)&p_fullpath, (FARPROC)ext_fullpath},
+	{HOOK_IAT_CANDIDATE, 0x0000, "_wfullpath", (FARPROC)NULL, (FARPROC *)&p_wfullpath, (FARPROC)ext_wfullpath},
 #endif // TRACEALL
 	{HOOK_IAT_CANDIDATE, 0, 0, NULL, 0, 0} // terminator
 };
@@ -569,9 +574,21 @@ char * CDECL ext_fullpath(char *absPath, const char *relPath, size_t maxLength)
 {
 	ApiName("_fullpath");
 	char * ret;
-	OutTraceSYS("%s: abspath=%s relpath=%s maxlen=%d\n", ApiRef, absPath, relPath, maxLength);
+	//OutTraceSYS("%s: abspath=%s relpath=%s maxlen=%d\n", ApiRef, absPath, relPath, maxLength);
+	OutTraceSYS("%s: relpath=%s maxlen=%d\n", ApiRef, relPath, maxLength);
 	ret = (*p_fullpath)(absPath, relPath, maxLength);
 	OutTraceSYS("%s: ret=%s\n", ApiRef, ret);
+	return ret;
+}
+
+wchar_t * CDECL ext_wfullpath(wchar_t *absPath, const wchar_t *relPath, size_t maxLength)
+{
+	ApiName("_wfullpath");
+	wchar_t * ret;
+	//OutTraceSYS("%s: abspath=%s relpath=%s maxlen=%d\n", ApiRef, absPath, relPath, maxLength);
+	OutTraceSYS("%s: relpath=%ls maxlen=%d\n", ApiRef, relPath, maxLength);
+	ret = (*p_wfullpath)(absPath, relPath, maxLength);
+	OutTraceSYS("%s: ret=%ls\n", ApiRef, ret);
 	return ret;
 }
 #endif // TRACEALL

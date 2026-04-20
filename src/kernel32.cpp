@@ -1909,6 +1909,7 @@ HMODULE WINAPI LoadLibraryExWrapper(LPVOID lpFileName, BOOL IsWidechar, HANDLE h
 {
 	HMODULE libhandle;
 	int idx;
+
 	// recursion control: this is necessary so far only on WinXP while other OS like Win7,8,10 don't get into 
 	// recursion problems, but in any case better to leave it here, you never know ....
 	static BOOL Recursed = FALSE;
@@ -3112,7 +3113,7 @@ HANDLE WINAPI extFindFirstFileExA(LPCSTR lpFileName, FINDEX_INFO_LEVELS fInfoLev
 	HANDLE ret;
 	DWORD mapping = DXW_NO_FAKE;
 
-	OutTraceSYS("%s: path=\"%s\"\n", ApiRef, lpFileName);
+	OutTraceSYS("%s: path=\"%s\" level=%d opt=%d flags=%#x\n", ApiRef, lpFileName, fInfoLevelId, fSearchOp, dwAdditionalFlags);
 
 	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
 		lpFileName = dxwTranslatePathA(lpFileName, &mapping);
@@ -3156,7 +3157,6 @@ HANDLE WINAPI extFindFirstFileExA(LPCSTR lpFileName, FINDEX_INFO_LEVELS fInfoLev
 		return ret;
 	}
 
-#if 0
 	// when making FindFirstFile on a root folder, the file sequence does NOT begins with the
 	// two folders "." and "..", so if making the operation on a fake drive and on a fake root
 	// you have to dkip these. 
@@ -3190,12 +3190,13 @@ HANDLE WINAPI extFindFirstFileExA(LPCSTR lpFileName, FINDEX_INFO_LEVELS fInfoLev
 	if(dxw.dwFlags14 & WIN16FINDFILEFIX) completeFindDataA(lpFindFileData);
 
 	OutDebugSYS("> filename=\"%s\"\n", lpFindFileData->cFileName);
-	OutDebugSYS("> altname=\"%0.14s\"\n", lpFindFileData->cAlternateFileName);
+	if(fInfoLevelId == 1) {
+		OutDebugSYS("> altname=\"%0.14s\"\n", lpFindFileData->cAlternateFileName);
+	}
 	OutDebugSYS("> attributes=%#x\n", lpFindFileData->dwFileAttributes);
 	OutDebugSYS("> filetime=%#x.%#x\n", lpFindFileData->ftCreationTime.dwLowDateTime, lpFindFileData->ftCreationTime.dwHighDateTime);
 	OutDebugSYS("> lastaccesstime=%#x.%#x\n", lpFindFileData->ftLastAccessTime.dwLowDateTime, lpFindFileData->ftLastAccessTime.dwHighDateTime);
 	OutDebugSYS("> lastwritetime=%#x.%#x\n", lpFindFileData->ftLastWriteTime.dwLowDateTime, lpFindFileData->ftLastWriteTime.dwHighDateTime);
-#endif
 	return ret;
 }
 
@@ -3205,7 +3206,7 @@ HANDLE WINAPI extFindFirstFileExW(LPCWSTR lpFileName, FINDEX_INFO_LEVELS fInfoLe
 	HANDLE ret;
 	DWORD mapping = DXW_NO_FAKE;
 
-	OutTraceSYS("%s: path=\"%ls\"\n", ApiRef, lpFileName);
+	OutTraceSYS("%s: path=\"%ls\" level=%d opt=%d flags=%#x\n", ApiRef, lpFileName, fInfoLevelId, fSearchOp, dwAdditionalFlags);
 
 	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
 		lpFileName = dxwTranslatePathW(lpFileName, &mapping);
@@ -3219,7 +3220,6 @@ HANDLE WINAPI extFindFirstFileExW(LPCWSTR lpFileName, FINDEX_INFO_LEVELS fInfoLe
 		return ret;
 	}
 
-#if 0
 	// when making FindFirstFile on a root folder, the file sequence does NOT begins with the
 	// two folders "." and "..", so if making the operation on a fake drive and on a fake root
 	// you have to dkip these. 
@@ -3253,12 +3253,13 @@ HANDLE WINAPI extFindFirstFileExW(LPCWSTR lpFileName, FINDEX_INFO_LEVELS fInfoLe
 	if(dxw.dwFlags14 & WIN16FINDFILEFIX) completeFindDataW(lpFindFileData);
 
 	OutDebugSYS("> filename=\"%ls\"\n", lpFindFileData->cFileName);
-	OutDebugSYS("> altname=\"%0.14ls\"\n", lpFindFileData->cAlternateFileName);
+	if(fInfoLevelId == 1) {
+		OutDebugSYS("> altname=\"%0.14ls\"\n", lpFindFileData->cAlternateFileName);
+	}
 	OutDebugSYS("> attributes=%#x\n", lpFindFileData->dwFileAttributes);
 	OutDebugSYS("> filetime=%#x.%#x\n", lpFindFileData->ftCreationTime.dwLowDateTime, lpFindFileData->ftCreationTime.dwHighDateTime);
 	OutDebugSYS("> lastaccesstime=%#x.%#x\n", lpFindFileData->ftLastAccessTime.dwLowDateTime, lpFindFileData->ftLastAccessTime.dwHighDateTime);
 	OutDebugSYS("> lastwritetime=%#x.%#x\n", lpFindFileData->ftLastWriteTime.dwLowDateTime, lpFindFileData->ftLastWriteTime.dwHighDateTime);
-#endif
 	return ret;
 }
 
@@ -3966,7 +3967,7 @@ HFILE WINAPI ext_lopen(LPCSTR lpPathName, int iReadWrite)
 				dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
 				break;
 		}
-		int size = strlen(lpPathName); // ghogho
+		int size = strlen(lpPathName); 
 		OutTraceLOC("%s: ASCII path=%s len0%d\n", ApiRef, lpPathName, size);
 		WCHAR *lpPathNameW = (WCHAR *)malloc((size + 1) * sizeof(WCHAR));
 		int n = (*pMultiByteToWideChar)(dxw.CodePage, 0, lpPathName, size, lpPathNameW, size);
@@ -4035,7 +4036,7 @@ HFILE WINAPI ext_lcreat(LPCSTR lpPathName, int iAttribute)
 				OutTrace("%s: _lcreat TRAP: attribute=%d path=\"%s\"\n", ApiRef, iAttribute, lpPathName);
 				break;
 		}
-		int size = strlen(lpPathName); // ghogho
+		int size = strlen(lpPathName); 
 		OutTraceLOC("%s: ASCII path=%s len0%d\n", ApiRef, lpPathName, size);
 		WCHAR *lpPathNameW = (WCHAR *)malloc((size + 1) * sizeof(WCHAR));
 		int n = (*pMultiByteToWideChar)(dxw.CodePage, 0, lpPathName, size, lpPathNameW, size);
@@ -5472,7 +5473,7 @@ DWORD WINAPI extGetFullPathNameA(LPCSTR lpFileName, DWORD nBufferLength, LPSTR l
 		);
 	}
 	else {
-		OutErrorSYS("%s: ERROR err=%d", ApiRef, GetLastError()); 
+		OutErrorSYS("%s: ERROR err=%d\n", ApiRef, GetLastError()); 
 	}
 	return ret;
 }

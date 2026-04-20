@@ -464,6 +464,13 @@ MCIERROR mciSendAudioString(ApiArg, LPCTSTR lpszCommand, LPTSTR lpszReturnString
 					bVirtual = TRUE;
 				}
 
+				// v2.06.14: @#@ found in "Sudden Strike"
+				if (!bVirtual && (sscanf(lpszCommand, "open cdaudio shareable alias %s", sNickName) == 1)) {
+					strcpy(dxw.sAudioNickName, sNickName);
+					OutTraceSND("> registered alias=%s for cdaudio\n", dxw.sAudioNickName);
+					bVirtual = TRUE;
+				}
+
 				// v2.06.04 @#@ found in "Nakoruru ~Ano Hito kara no Okurimono~" (Jap 2001)
 				if (!bVirtual && (sscanf(lpszCommand, "open cdaudio!%s alias %s", sDriveString, sNickName) == 2)) {
 					strcpy(dxw.sAudioNickName, sNickName);

@@ -42,17 +42,21 @@ static char *NextString(char *fname, char *limit)
 	ApiName("NextString");
 	// found in "Al Unser Jr. Arcade Racing"
 	// skip function name
+	extern BOOL hookSemaphore;
+	hookSemaphore = TRUE;
 	__try {
 		for(; (fname < limit) && (*fname); fname++);	
 		for(; (fname < limit) && (!*fname) ; fname++);
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER){
 		OutTrace("%s: exception @%#x\n", ApiRef, fname);
+		hookSemaphore = FALSE;
 		return 0;
 	}
 	// if statement necessary for Detours hooking because Detours can set the DxWnd exception handler before the
 	// IAT navigation, so the exception handler here above is bypassed and the return 0 must be enforced by the 
 	// next statement
+	hookSemaphore = FALSE;
 	if(fname > limit) return 0;
 	return fname;
 }

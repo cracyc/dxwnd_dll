@@ -33,6 +33,7 @@ static int ReadCount389 = 0;
 #define MODE_READ 1
 #define MODE_WRITE 2
 static int ModeCount389 = MODE_UNKNOWN;
+static int vRetrace = 0;
 
 #if REPLACEDOSROMFONT
 // MOVZX DX,BYTE PTR DS:[ECX+EDX+0FFA6E]
@@ -168,6 +169,9 @@ LONG WINAPI DxWExceptionHandler(LPEXCEPTION_POINTERS ExceptionInfo)
 	BOOL ret;
 	PCONTEXT lpContext = ExceptionInfo->ContextRecord;
 	PEXCEPTION_RECORD pException = ExceptionInfo->ExceptionRecord;
+	extern BOOL hookSemaphore;
+
+	if(hookSemaphore) return EXCEPTION_CONTINUE_SEARCH;
 
 	OutDebugSYS("%s: exception code=%#x subcode=%#x flags=%#x addr=%#x\n"
 		"> eax=%#x ebx=%#x ecx=%#x edx=%#x\n"
@@ -234,6 +238,8 @@ LONG WINAPI DxWExceptionHandler(LPEXCEPTION_POINTERS ExceptionInfo)
 						 // fixes "Rage of Mages - Allods" with "Handle exceptions" flag.
 		case 0xc000008e: // Floating point division by 0
 						 // found in "Jane's Longbow Gold" instant action, returning EXCEPTION_CONTINUE_SEARCH fixes the problem.
+		case 0xc000008f: // Floating-point inexact result
+						 // found in "Chase Ace Deluxe" and on VB6 games in general, returning EXCEPTION_CONTINUE_SEARCH fixes the problem.
 			OutTraceSYS("%s: EXCEPTION_CONTINUE_SEARCH @%#x\n", ApiRef, target);
 			return EXCEPTION_CONTINUE_SEARCH;
 			break;
@@ -400,6 +406,11 @@ LONG WINAPI DxWExceptionHandler(LPEXCEPTION_POINTERS ExceptionInfo)
 								// @#@ Jane's Apache Longbow Gold - get VGA status?
 								OutTraceVGA("%s: DAC READ port=0x3DA eax=%#x\n", ApiRef, lpContext->Eax);
 								lpContext->Eax = 0x00000004;
+								// @#@ "Ecco the Dolphin" - wait for end / begin of vertical retrace
+								if(dxw.dwFlags20 & ALTERNATEVRETRACE){
+									vRetrace = (vRetrace == 0) ? 8 : 0;
+									lpContext->Eax |= vRetrace;
+								}
 							}
 							break;							
 							case 0x3D5:

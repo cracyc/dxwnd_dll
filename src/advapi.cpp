@@ -241,6 +241,7 @@ static char *hKey2String(HKEY hKey)
         case HKEY_CURRENT_USER:		skey="HKEY_CURRENT_USER"; break;
         case HKEY_LOCAL_MACHINE:	skey="HKEY_LOCAL_MACHINE"; break;
         case HKEY_USERS:			skey="HKEY_USERS"; break;
+		case HKEY_DYN_DATA:			skey="HKEY_DYN_DATA"; break; // v2.06.14 - added for @#@ "Powerslides" demo?
 		default:					sprintf(skeybuf, "%#x", hKey); skey=skeybuf; break;
 	}
 	return skey;
@@ -506,6 +507,7 @@ static DWORD GetKeyValue(
 		if(!strncmp(pData,"dword:",strlen("dword:"))){ //dword value
 			DWORD val;
 			dwType=REG_DWORD;
+			cbData *= sizeof(DWORD); // v2.06.14
 			pData+=strlen("dword:");
 			sscanf(pData, "%x", &val); // v2.05.19: fix - "%#x" -> "%x" !!!
 			if(lpData) {
@@ -1028,8 +1030,8 @@ LONG WINAPI extRegEnumValueA(HKEY hKey, DWORD dwIndex, LPSTR lpValueName, LPDWOR
 	LONG res;
 	ApiName("RegEnumValueA");
 
-	OutTraceR("%s: hKey=%#x(\"%s\") index=%d cchValueName=%d Reserved=%#x lpType=%#x lpData=%#x lpcbData=%#x\n", 
-		ApiRef, hKey, hKey2String(hKey), dwIndex, *lpcchValueName, lpReserved, lpType, lpData, lpcbData);
+	OutTraceR("%s: hKey=%#x(\"%s\") index=%d cchValueName=%d Reserved=%#x lpType=%#x lpData=%#x *lpcbData=%d\n", 
+		ApiRef, hKey, hKey2String(hKey), dwIndex, *lpcchValueName, lpReserved, lpType, lpData, lpcbData ? *lpcbData : 0);
 	if (!IsFake(hKey)){
 		res=(*pRegEnumValueA)(hKey, dwIndex, lpValueName, lpcchValueName, lpReserved, lpType, lpData, lpcbData);
 		IfLogKeyValue(ApiRef, FALSE, res, lpType, lpData, lpcbData);
@@ -1238,16 +1240,23 @@ LONG WINAPI extRegQueryInfoKeyA(
 		}
 
 		if(res == ERROR_SUCCESS) {
-			int iValueNameLen, iMaxValueNameLen, iValues;
+			int iValues;
+			DWORD iValueNameLen, iMaxValueNameLen;
+			DWORD iValueLen, iMaxValueLen;
 			if (lpcSubKeys) *lpcSubKeys = 0;
 			if (lpcbMaxSubKeyLen) *lpcbMaxSubKeyLen = 0; // ???
 			if (lpcbMaxClassLen) *lpcbMaxClassLen = 0; // ???
 			if (lpcSubKeys) *lpcSubKeys = 0; // ???
+			if (lpcbMaxValueLen) *lpcbMaxValueLen = 0;
 
 			iValues = 0; 
 			iMaxValueNameLen = 0;
+			iMaxValueLen = 0;
+			long line_start, line_end;
 
+			line_start = ftell(regf);
 			fgets(RegBuf, 256, regf);
+			line_end = ftell(regf);
 			while (!feof(regf)){
 				if (RegBuf[0] == '[') break;
 				if(RegBuf[0]=='"') {
@@ -1258,13 +1267,33 @@ LONG WINAPI extRegQueryInfoKeyA(
 						iValueNameLen = i-1;
 						if(iValueNameLen > iMaxValueNameLen) iMaxValueNameLen = iValueNameLen; // save maximum value
 					}
+					// v2.06.14: calculation of effective iMaxValueLen value
+					// fixes "El capitan Trueno" episode 1 and 2
+					if(lpcbMaxValueLen){ 
+						char KeyName[81];
+						int i;
+						for(i=1; RegBuf[i]; i++) {
+							if(RegBuf[i]=='"') break;
+							KeyName[i-1] = RegBuf[i];
+						}
+						KeyName[i-1]=0;
+						fseek(regf, line_start, SEEK_SET);
+						GetKeyValue(regf, ApiRef, KeyName, NULL, NULL, &iValueLen, FALSE);
+						fseek(regf, line_end, SEEK_SET);
+						//OutTrace("DEBUG: key=%d keyname=%s len=%d\n", iValues, KeyName, iValueLen);
+						if(iValueLen > iMaxValueLen) iMaxValueLen = iValueLen; // save maximum value
+					}
 				}
+				line_start = ftell(regf);
 				fgets(RegBuf, 256, regf);
+				line_end = ftell(regf);
 			}
 			OutDebugR("> Values=%d\n", iValues);	
 			OutDebugR("> MaxValueNameLen=%d\n", iMaxValueNameLen);	
+			OutDebugR("> MaxValueLen=%d\n", iMaxValueLen);	
 			if (lpcValues) *lpcValues = iValues;
 			if (lpcbMaxValueNameLen) *lpcbMaxValueNameLen = iMaxValueNameLen;
+			if (lpcbMaxValueLen) *lpcbMaxValueLen = iMaxValueLen;
 		}
 	}
 
@@ -1280,7 +1309,7 @@ LONG WINAPI extRegQueryInfoKeyA(
 		}
 		OutTraceR("%s: res=SUCCESS hKey=%#x(\"%s\") "
 			"Class=%s cchClass=%d SubKeys=%d MaxSubKeyLen=%d "
-			"MaxClassLen=%d Values=%d MaxValueNameLen=%d SecDescr=%s LastWriteTime=%s\n", 
+			"MaxClassLen=%d Values=%d MaxValueNameLen=%d MaxValueLen=%d SecDescr=%s LastWriteTime=%s\n", 
 			ApiRef,
 			hKey, hKey2String(hKey), 
 			lpClass ? lpClass : "(NULL)",
@@ -1290,6 +1319,7 @@ LONG WINAPI extRegQueryInfoKeyA(
 			lpcbMaxClassLen ? *lpcbMaxClassLen : 0,
 			lpcValues ? *lpcValues : 0,
 			lpcbMaxValueNameLen ? *lpcbMaxValueNameLen : 0,
+			lpcbMaxValueLen ? *lpcbMaxValueLen : 0,
 			lpcbSecurityDescriptor ? "(NULL)" : "(tbd)",
 			lpftLastWriteTime ? sTime : "(NULL)"
 			);
@@ -1668,8 +1698,8 @@ LONG WINAPI extRegEnumValueW(HKEY hKey, DWORD dwIndex, LPWSTR lpValueName, LPDWO
 	LONG res;
 	ApiName("RegEnumValueW");
 
-	OutTraceR("%s: hKey=%#x(\"%s\") index=%d cchValueName=%d Reserved=%#x lpType=%#x lpData=%#x lpcbData=%#x\n", 
-		ApiRef, hKey, hKey2String(hKey), dwIndex, *lpcchValueName, lpReserved, lpType, lpData, lpcbData);
+	OutTraceR("%s: hKey=%#x(\"%s\") index=%d cchValueName=%d Reserved=%#x lpType=%#x lpData=%#x *lpcbData=%d\n", 
+		ApiRef, hKey, hKey2String(hKey), dwIndex, *lpcchValueName, lpReserved, lpType, lpData, lpcbData ? *lpcbData : 0);
 	if (!IsFake(hKey)){
 		res=(*pRegEnumValueW)(hKey, dwIndex, lpValueName, lpcchValueName, lpReserved, lpType, lpData, lpcbData);
 		IfLogKeyValue(ApiRef, TRUE, res, lpType, lpData, lpcbData);

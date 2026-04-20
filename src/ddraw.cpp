@@ -3628,6 +3628,9 @@ void BlitError(HRESULT res, LPRECT lps, LPRECT lpd, int line)
 				strcat(sInfo, "dest=(NULL)\n");
 			}
 		}
+		else {
+			strcat(sInfo, "\n");
+		}
 		OutTrace(sInfo);
 	}
 	return;
@@ -4378,6 +4381,29 @@ HRESULT WINAPI extFlip4(LPDIRECTDRAWSURFACE lpdds, LPDIRECTDRAWSURFACE lpddssrc,
 HRESULT WINAPI extFlip7(LPDIRECTDRAWSURFACE lpdds, LPDIRECTDRAWSURFACE lpddssrc, DWORD dwflags)
 { return extFlip("IDirectDrawSurface7::Flip", 7, pFlip7, lpdds, lpddssrc, dwflags); }
 
+char *sDDFX(DWORD c, char *eb, int eblen)
+{
+	unsigned int l;
+	eblen -= 4;
+	strcpy(eb,"DDBLTFX_");
+	if (c & DDBLTFX_ARITHSTRETCHY) strscat(eb, eblen, "ARITHSTRETCHY+");
+	if (c & DDBLTFX_MIRRORLEFTRIGHT) strscat(eb, eblen, "MIRRORLEFTRIGHT+");
+	if (c & DDBLTFX_MIRRORUPDOWN) strscat(eb, eblen, "MIRRORUPDOWN+");
+	if (c & DDBLTFX_NOTEARING) strscat(eb, eblen, "NOTEARING+");
+	if (c & DDBLTFX_ROTATE180) strscat(eb, eblen, "ROTATE180+");
+	if (c & DDBLTFX_ROTATE270) strscat(eb, eblen, "ROTATE270+");
+	if (c & DDBLTFX_ROTATE90) strscat(eb, eblen, "ROTATE90+");
+	if (c & DDBLTFX_ZBUFFERRANGE) strscat(eb, eblen, "ZBUFFERRANGE+");
+	if (c & DDBLTFX_ZBUFFERBASEDEST) strscat(eb, eblen, "ZBUFFERBASEDEST+");
+	l=strlen(eb);
+	if(l == eblen) strscat(eb, eblen+3, "...");
+	else {
+		if (l>strlen("DDBLTFX_")) eb[l-1]=0; // delete last '+' if any
+		else eb[0]=0;
+	}
+	return(eb);
+}
+
 HRESULT WINAPI extBlt(ApiArg, int dxversion, Blt_Type pBlt, LPDIRECTDRAWSURFACE lpdds, LPRECT lpdestrect,
 	LPDIRECTDRAWSURFACE lpddssrc, LPRECT lpsrcrect, DWORD dwflags, LPDDBLTFX lpddbltfx)
 {
@@ -4425,9 +4451,10 @@ HRESULT WINAPI extBlt(ApiArg, int dxversion, Blt_Type pBlt, LPDIRECTDRAWSURFACE 
 		strcat(sLog,"\n");
 		OutTrace(sLog);
 		if(IsDebugDDRAW && lpddbltfx) {
+			char sBuf[80+1];
 			OutTrace("> fx.size=%d\n", lpddbltfx->dwSize);
 			if(lpddbltfx->dwSize == sizeof(DDBLTFX)){
-				OutTrace("> fx.dwDDFX=%#x\n", lpddbltfx->dwDDFX);
+				OutTrace("> fx.dwDDFX=%#x(%s)\n", lpddbltfx->dwDDFX, sDDFX(lpddbltfx->dwDDFX, sBuf, 80));
 				OutTrace("> fx.dwROP=%#x\n", lpddbltfx->dwROP);
 				OutTrace("> fx.dwRotationAngle=%#x\n", lpddbltfx->dwRotationAngle);
 				OutTrace("> fx.dwZBufferOpCode=%#x\n", lpddbltfx->dwZBufferOpCode);
@@ -4454,6 +4481,42 @@ HRESULT WINAPI extBlt(ApiArg, int dxversion, Blt_Type pBlt, LPDIRECTDRAWSURFACE 
 	if ((dxw.dwFlags16 & FULLRECTBLT) && dxwss.IsAPrimarySurface(lpdds)){
 		lpsrcrect=NULL;
 		lpdestrect=NULL;
+	}
+
+	if((dxw.dwFlags20 & SUPPRESSBLTFX) && lpddbltfx){
+		if(lpddbltfx->dwDDFX){
+			OutTraceDW("%s: SUPPRESSBLTFX clear DDFX\n", ApiRef);
+			lpddbltfx->dwDDFX = 0;
+		}
+	}
+
+	if((dxw.dwFlags20 & EMULATEXMIRRORING) && lpddbltfx && (lpddbltfx->dwDDFX == DDBLTFX_MIRRORLEFTRIGHT)) {
+		DDSURFACEDESC2 ddsd, ddsdsrc;
+		HDC hSrc, hDst;
+		int dwSize = (dxversion<4)?sizeof(DDSURFACEDESC):sizeof(DDSURFACEDESC2);
+		memset(&ddsd, 0, dwSize);
+		memset(&ddsdsrc, 0, dwSize);
+		ddsd.dwSize = dwSize;
+		ddsdsrc.dwSize = dwSize;
+		res = (*pGetSurfaceDescMethod(dxversion))((LPDIRECTDRAWSURFACE2)lpdds, &ddsd);
+		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
+		res = (*pGetSurfaceDescMethod(dxversion))((LPDIRECTDRAWSURFACE2)lpddssrc, &ddsdsrc);
+		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
+		res=(*pGetDCMethod())(lpddssrc, &hSrc);
+		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
+		res=(*pGetDCMethod())(lpdds, &hDst);
+		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
+		//res=(*pGDIStretchBlt)(hDst, 0, 0, ddsd.dwWidth, ddsd.dwHeight, hSrc, 0, 0, ddsdsrc.dwWidth, ddsdsrc.dwHeight, SRCCOPY);
+		//res=(*pGDIStretchBlt)(hDst, ddsd.dwWidth, 0, 0, ddsd.dwHeight, hSrc, 0, 0, ddsdsrc.dwWidth, ddsdsrc.dwHeight, NULL);
+		//res=(*pGDIStretchBlt)(hDst, ddsd.dwWidth, 0, -(ddsd.dwWidth), ddsd.dwHeight, hSrc, 0, 0, ddsdsrc.dwWidth, ddsdsrc.dwHeight, SRCCOPY);
+		res=(*pGDIStretchBlt)(hDst, ddsd.dwWidth, 0, -(int)(ddsd.dwWidth), ddsd.dwHeight, hSrc, 0, 0, ddsdsrc.dwWidth - 1, ddsdsrc.dwHeight, SRCCOPY);
+		if(!res) OutTrace("%s: XMIRRORING err=%d @%d\n", GetLastError(), __LINE__);
+		res=(*pUnlockMethod(dxversion))(lpdds, lpdestrect);
+		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
+		res=(*pUnlockMethod(dxversion))(lpddssrc, lpsrcrect);
+		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
+		// do not generate errors
+		return DD_OK;
 	}
 
 	if(dxw.dwFlags19 & EMULATECLIPPER){
@@ -7024,7 +7087,8 @@ static HRESULT WINAPI extGetSurfaceDesc(ApiArg, int dxversion, GetSurfaceDesc_Ty
 		case SURFACE_ROLE_PRIMARY:
 			IsFixed=TRUE;
 			lpddsd->ddsCaps.dwCaps = SetPrimaryCaps(dxwss.GetCaps(lpdds));
-			lpddsd->dwBackBufferCount = dxwPrimaryFlipChain.GetLength() - 1;
+			// v2.06.14: @#@ "Ecco the Dolphin"
+			lpddsd->dwBackBufferCount = (dxwPrimaryFlipChain.GetLength() > 0) ? (dxwPrimaryFlipChain.GetLength() - 1) : 0;
 			lpddsd->dwHeight=dxw.GetScreenHeight();
 			lpddsd->dwWidth=dxw.GetScreenWidth();
 			break;

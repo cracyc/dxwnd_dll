@@ -1275,6 +1275,7 @@ BOOL WINAPI extAnimatePalette(HPALETTE hpal, UINT iStartIndex, UINT cEntries, co
 {
 	// Invoked by @#@ "Pharaoh's Ascent 1.4"
 	// Used by @#@ "Yu-No"
+	// used in "Ecco the Dolphin"
 	BOOL ret;
 	ApiName("AnimatePalette");
 
@@ -1283,7 +1284,7 @@ BOOL WINAPI extAnimatePalette(HPALETTE hpal, UINT iStartIndex, UINT cEntries, co
 
 	ret=(*pAnimatePalette)(hpal, iStartIndex, cEntries, ppe);
 
-	if(dxw.IsEmulated && (hpal == hLastRealizedPalette)){
+	if(dxw.IsEmulated && (dxw.dwFlags6 & SYNCPALETTE) && (hpal == hLastRealizedPalette)){
 		PALETTEENTRY PalEntries[256];
 		OutTraceDW("%s: AnimatePalette on hpal=%#x ret=%d\n", ApiRef, hpal, ret);
 		memcpy(&PalEntries[iStartIndex], ppe, cEntries * sizeof(PALETTEENTRY));
@@ -3032,9 +3033,9 @@ LONG WINAPI extGetBitmapBits(HBITMAP hbit, LONG cb, LPVOID lpvBits)
 	LONG res;
 	ApiName("GetBitmapBits");
 
-	OutTrace("%s: hbitmap=%#x cb=%d\n", ApiRef, hbit, cb);
+	OutTraceGDI("%s: hbitmap=%#x cb=%d\n", ApiRef, hbit, cb);
 	res = (*pGetBitmapBits)(hbit, cb, lpvBits);
-	OutTrace("%s: res=%#x\n", ApiRef, res);
+	OutTraceGDI("%s: res=%#x\n", ApiRef, res);
 	return res;
 }
 

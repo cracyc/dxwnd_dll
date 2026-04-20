@@ -3045,3 +3045,8 @@ void extSDL_FlushEvents(Uint32 minType, Uint32 maxType)
 	OutTraceSDL("%s: types=%d-%d\n", ApiRef, minType, maxType);
 }
 
+// SDL@ add-ons for @#@"Snarl"
+
+// SDL_SetWindowMouseRect
+// fix SDL_GetDisplayBounds ???
+// SDL_RaiseWindow ???

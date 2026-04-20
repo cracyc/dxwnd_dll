@@ -44,6 +44,7 @@ GetWindowLong_Type pGetWindowLong;
 SetWindowLong_Type pSetWindowLong;
 HWND hTrayWnd;
 AsyncDC *lpADC;
+BOOL hookSemaphore = FALSE;
 
 extern LRESULT CALLBACK MessageHook(int, WPARAM, LPARAM);
 extern LRESULT CALLBACK KeyboardHook(int, WPARAM, LPARAM);
