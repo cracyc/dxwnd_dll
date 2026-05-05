@@ -2612,9 +2612,7 @@ BOOL WINAPI extPeekMessageA(LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMs
 BOOL WINAPI extPeekMessageW(LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 { ApiName("PeekMessageW"); return extPeekMessage(ApiRef, pPeekMessageW, lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg); }
 
-
-static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
-{
+static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, BOOL isAnsi, LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax){
 	BOOL res;
 	POINT point;
 
@@ -2626,7 +2624,21 @@ static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, LPMSG lpMs
 		}
 	}
 
-	res=(*pGetMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax);
+	//res=(*pGetMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax);
+	while(TRUE) {
+		PeekMessage_Type pPeekMessage = (isAnsi) ? pPeekMessageA : pPeekMessageW;
+		if((*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE)) {
+			res = (lpMsg->message == WM_QUIT) ? 0 : 1;
+			break;
+		}
+		if(MsgWaitForMultipleObjects(0, NULL, FALSE, 100, QS_ALLINPUT) == WAIT_TIMEOUT) {
+			lpMsg->hwnd = 0;
+			lpMsg->message = 0;
+			res = 1;
+			break;
+		}
+	}
+
 	OutTraceW("%s: lpmsg=%#x hwnd=%#x filter=(%#x-%#x) msg=%#x(%s) wparam=%#x, lparam=%#x pt=(%d,%d) res=%#x\n", 
 		ApiRef, lpMsg, lpMsg->hwnd, wMsgFilterMin, wMsgFilterMax, 
 		lpMsg->message, ExplainWinMessage(lpMsg->message & 0xFFFF), 
@@ -2703,9 +2715,9 @@ static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, LPMSG lpMs
 }
 
 BOOL WINAPI extGetMessageA(LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
-{ ApiName("GetMessageA"); return extGetMessage(ApiRef, pGetMessageA, lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax); }
+{ ApiName("GetMessageA"); return extGetMessage(ApiRef, pGetMessageA, TRUE, lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax); }
 BOOL WINAPI extGetMessageW(LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
-{ ApiName("GetMessageW"); return extGetMessage(ApiRef, pGetMessageW, lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax); }
+{ ApiName("GetMessageW"); return extGetMessage(ApiRef, pGetMessageW, FALSE, lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax); }
 
 BOOL WINAPI extPostMessage(char *api, PostMessage_Type pPostMessage, HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {

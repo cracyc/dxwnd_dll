@@ -678,6 +678,8 @@
 #define EMULATEXMIRRORING	0x00000040 // emulates a X mirrored Bld using StretchBlt
 #define EMULATEYMIRRORING	0x00000080 // emulates a Y mirrored Bld using StretchBlt
 #define GETALLMESSAGES		0x00000100 // ....
+#define NONANTIALIASEDFONTS	0x00000200 // forces NONANTIALIASED_QUALITY fonts
+#define MCISINGLETHREADED	0x00000400 // run all mciSendCommand instances from a single thread
 
 // debug Dflags DWORD:
 #define CPUVENDORMASK		0x00000007
@@ -722,6 +724,8 @@
 #define DUMPBLITSRC			0x00000010 // dump surfaces source of a Blt operation
 #define DISABLEWINHOOK		0x00000040 // disables the system-wide Window hook set by default
 #define FORCED3DCHECKOK		0x00000080 // forces a positive checks for all D3D Check* methods
+#define FORCEXMIRRORING		0x00000100 
+#define FORCEYMIRRORING		0x00000200
 #define EXPERIMENTAL		0x01000000 // activate version-specific code variants. Developer's use only.
 #define EXPERIMENTAL2		0x02000000
 #define EXPERIMENTAL3		0x04000000
