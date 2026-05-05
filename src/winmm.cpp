@@ -1418,12 +1418,14 @@ MMRESULT WINAPI extwaveOutClose(HWAVEOUT hwo)
 		return MMSYSERR_NODRIVER;
 	}
 
+#ifdef ASYNCOPENONLY
 	if(dxw.dwFlags19 & ASYNCWAVEOUTCLOSE){
 		HWAVEOUT *phwo = (HWAVEOUT *)HeapAlloc(GetProcessHeap(), 0, sizeof(HWAVEOUT *));
 		*phwo = hwo;
 		CreateThread(NULL, 0, waveoutclose_wait, phwo, 0, NULL);
 		return MMSYSERR_NOERROR;
 	}
+#endif // ASYNCOPENONLY
 
 	ret = (*pwaveOutClose)(hwo);
 	_if(ret) OutErrorSND("%s: ERROR res=%#x(%s)\n", ApiRef, ret, mmErrorString(ret));
@@ -1847,9 +1849,32 @@ void CALLBACK waveOutProcAsync(HWAVEOUT hwo, UINT uMsg, DWORD_PTR dwInstance, DW
 	}
 }
 
+DWORD WINAPI waveout_thread(LPVOID param)
+{
+	MSG msg;
+	BOOL ret;
+	void (WINAPI *waveoutproc)(HWAVEOUT, UINT, DWORD, DWORD, DWORD);
+	waveoutproc = (void (WINAPI *)(HWAVEOUT, UINT, DWORD, DWORD, DWORD))param;
+	while(ret = GetMessageA(&msg, NULL, 0, 0)){
+	   if(ret == -1) return -1;
+	   switch(msg.message){
+		   case MM_WOM_OPEN:
+		   case MM_WOM_CLOSE:
+		   case MM_WOM_DONE:
+			   waveoutproc((HWAVEOUT)msg.wParam, msg.message, 0, msg.lParam, 0);
+			   if(msg.message == MM_WOM_CLOSE) return 0;
+			   break;
+		   case WM_USER+10:
+			   return 0;
+	   }
+	}
+	return 0;
+}
+
 MMRESULT WINAPI extwaveOutOpen(LPHWAVEOUT phwo, UINT_PTR uDeviceID, LPWAVEFORMATEX pwfx, DWORD_PTR dwCallback, DWORD_PTR dwCallbackInstance, DWORD fdwOpen)
 {
 	MMRESULT ret;
+	DWORD threadid = 0;
 	ApiName("waveOutOpen");
 
 	OutTraceSND("%s: callback=%#x instance=%#x flags=%#x(%s)\n", 
@@ -1880,10 +1905,16 @@ MMRESULT WINAPI extwaveOutOpen(LPHWAVEOUT phwo, UINT_PTR uDeviceID, LPWAVEFORMAT
 	}
 
 	// fixes for the callback function
-	if((fdwOpen & CALLBACK_TYPEMASK) == CALLBACK_FUNCTION){
+	if((fdwOpen & (CALLBACK_TYPEMASK | WAVE_FORMAT_QUERY)) == CALLBACK_FUNCTION){
 		if(dxw.dwFlags19 & ASYNCWAVEOUTOPEN){ // fixes @#@ "CandyLand Adventure"
+#ifdef ASYNCOPENONLY
 			pwaveOutProc = (waveOutProc_Type)dwCallback;
 			dwCallback = (DWORD_PTR)waveOutProcAsync;
+#else
+			CloseHandle(CreateThread(NULL, 0, waveout_thread, (LPVOID)dwCallback, 0, &threadid));
+			fdwOpen = (fdwOpen & ~CALLBACK_TYPEMASK) | CALLBACK_THREAD;
+			dwCallback = threadid;
+#endif
 		}
 		else if(dxw.dwFlags14 & MW2WAVEOUTFIX){ // discouraged !!!
 			fdwOpen = CALLBACK_NULL;
@@ -1968,6 +1999,7 @@ MMRESULT WINAPI extwaveOutOpen(LPHWAVEOUT phwo, UINT_PTR uDeviceID, LPWAVEFORMAT
 	//}
 
 	if(ret){
+		if (threadid) PostThreadMessageA(threadid, WM_USER+10, 0, 0);
 		OutErrorSND("%s: ERROR res=%#x(%s)\n", ApiRef, ret, mmErrorString(ret));
 		return ret;
 	}

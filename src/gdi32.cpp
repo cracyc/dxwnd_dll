@@ -1129,7 +1129,7 @@ int WINAPI extGDISaveDC(HDC hdc)
 	int ret;
 
 #ifndef DXW_NOTRACES
-	if((dxw.dwDFlags & DUMPDEVCONTEXT) && dxw.bCustomKeyToggle) DumpHDC(hdc, 0, 0, 0, 0);
+	if((dxw.dwDFlags & DUMPDEVCONTEXT) && dxw.bCustomKeyToggle) DumpFullHDC("ReleaseDC", hdc);
 #endif // DXW_NOTRACES
 
 	ret=(*pGDISaveDC)(hdc);
@@ -2102,6 +2102,7 @@ HFONT WINAPI extCreateFontA(int nHeight, int nWidth, int nEscapement, int nOrien
 	}
 
 	if(dxw.dwFlags8 & QUALITYFONTS) fdwQuality = BEST_QUALITY;
+	if(dxw.dwFlags20 & NONANTIALIASEDFONTS) fdwQuality = NONANTIALIASED_QUALITY;
 
 	if(dxw.dwFlags11 & CUSTOMLOCALE) {
 		fdwCharSet = (DWORD)GetCharsetFromANSICodepage(dxw.CodePage);
@@ -2186,6 +2187,7 @@ HFONT WINAPI extCreateFontW(int nHeight, int nWidth, int nEscapement, int nOrien
 	}
 
 	if(dxw.dwFlags8 & QUALITYFONTS) fdwQuality = BEST_QUALITY;
+	if(dxw.dwFlags20 & NONANTIALIASEDFONTS) fdwQuality = NONANTIALIASED_QUALITY;
 
 	if(dxw.dwFlags11 & CUSTOMLOCALE) {
 		fdwCharSet = (DWORD)GetCharsetFromANSICodepage(dxw.CodePage);
@@ -2256,6 +2258,7 @@ HFONT WINAPI extCreateFontIndirectA(const LOGFONTA *lplf)
 	memcpy((char *)&lf, (char *)lplf, sizeof(LOGFONTA));
 
 	if(dxw.dwFlags8 & QUALITYFONTS) lf.lfQuality = BEST_QUALITY; 
+	if(dxw.dwFlags20 & NONANTIALIASEDFONTS) lf.lfQuality = NONANTIALIASED_QUALITY;
 
 	if(dxw.dwFlags11 & CUSTOMLOCALE) {
 		lf.lfCharSet = (DWORD)GetCharsetFromANSICodepage(dxw.CodePage);
@@ -2321,6 +2324,7 @@ HFONT WINAPI extCreateFontIndirectW(const LOGFONTW *lplf)
 	memcpy((char *)&lf, (char *)lplf, sizeof(LOGFONTW));
 
 	if(dxw.dwFlags8 & QUALITYFONTS) lf.lfQuality = BEST_QUALITY; 
+	if(dxw.dwFlags20 & NONANTIALIASEDFONTS) lf.lfQuality = NONANTIALIASED_QUALITY;
 
 	if(dxw.dwFlags11 & CUSTOMLOCALE) {
 		lf.lfCharSet = (DWORD)GetCharsetFromANSICodepage(dxw.CodePage);
@@ -3587,7 +3591,9 @@ BOOL WINAPI extSetWindowOrgEx(HDC hdc, int X, int Y, LPPOINT lpPoint)
 		dxw.MapClient(&X, &Y);
 		OutTraceGDI("%s: fixed origin=(%d,%d)\n", ApiRef, X, Y);
 	}
-	if(dxw.IsFullScreen()){
+	// v2.06.14: fixed by crazyc. Offset should not be applied to Memory DC
+	// Fixes @#@ "Eternal Daughter"
+	if((GetObjectType(hdc) == OBJ_DC) && dxw.IsFullScreen()){ 
 		X += dxw.iPosX;
 		Y += dxw.iPosY;
 	}

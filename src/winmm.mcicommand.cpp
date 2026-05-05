@@ -30,6 +30,8 @@ extern BOOL checkGap(char *, unsigned int);
 static char *ansiIdentity = NULL;
 static char *ansiProduct = NULL;
 static WCHAR *wideIdentity = NULL;
+static DWORD mcithreadid = 0;
+static HWND mcihwnd;
 
 MCIERROR WINAPI emumciSendCommand(BOOL, MCIDEVICEID, UINT, DWORD, DWORD_PTR);
 
@@ -601,6 +603,35 @@ static BOOL isAudioW(LPCWSTR devType)
 	return FALSE;
 }
 
+static LRESULT WINAPI mciwndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+	if (msg == WM_USER) {
+		MSG *mcimsg = (MSG *)wparam;
+		OutTrace("mciwndproc: proxed MCI cmd0%#x\n", mcimsg->message);
+		if (lparam)
+			return (*pmciSendCommandA)((MCIDEVICEID)mcimsg->hwnd, mcimsg->message, mcimsg->wParam, mcimsg->lParam);
+		else
+			return (*pmciSendCommandW)((MCIDEVICEID)mcimsg->hwnd, mcimsg->message, mcimsg->wParam, mcimsg->lParam);
+	}
+	return DefWindowProc(hwnd, msg, wparam, lparam);
+}
+
+static DWORD WINAPI mcithread(LPVOID param)
+{
+	WNDCLASSA cls = {0, mciwndproc};
+	MSG msg;
+	cls.lpszClassName = "MCIthread";
+	RegisterClassA(&cls);
+	mcihwnd = CreateWindowExA(0, "MCIThread", NULL, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, 0, NULL);
+	SetEvent(param);
+	while (int ret = GetMessage(&msg, 0, 0, 0)) {
+		if (ret == -1) break;
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}   
+	return 0;
+}
+
 MCIERROR WINAPI extmciSendCommand(ApiArg, BOOL isAnsi, mciSendCommand_Type pmciSendCommand, MCIDEVICEID IDDevice, UINT uMsg, DWORD dwFlags, DWORD_PTR dwParam)
 {
 	RECT saverect = dxw.GetScreenRect(); // v2.06.08: initialize ...
@@ -1056,7 +1087,20 @@ MCIERROR WINAPI extmciSendCommand(ApiArg, BOOL isAnsi, mciSendCommand_Type pmciS
 		ret = (*pmciSendCommand)(IDDevice, uMsg, dwFlags, dwParam);
 	}
 #else
-	ret = (*pmciSendCommand)(IDDevice, uMsg, dwFlags, dwParam);
+	if(dxw.dwFlags20 & MCISINGLETHREADED){
+		if(!mcithreadid) {
+			HANDLE ev = CreateEventA(NULL, FALSE, FALSE, NULL);
+			CloseHandle(CreateThread(NULL, 0, mcithread, ev, 0, &mcithreadid));
+			OutTrace("%s: created MCI dedicated thread id=%#x\n", ApiRef, mcithreadid);
+			WaitForSingleObject(ev, INFINITE);
+			CloseHandle(ev);
+		}
+		MSG msg = { (HWND)IDDevice, uMsg, dwFlags, dwParam };
+		ret = SendMessageA(mcihwnd, WM_USER, (WPARAM)&msg, isAnsi);	
+	}
+	else {
+		ret = (*pmciSendCommand)(IDDevice, uMsg, dwFlags, dwParam);
+	}
 #endif
 
 	// v2.05.71: can't understand why, but this happens and that fixes ...

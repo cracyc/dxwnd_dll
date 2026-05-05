@@ -136,7 +136,7 @@ static void CreateGlobalAtom(void)
 typedef LRESULT(CALLBACK *CALLPROC)(WNDPROC, HWND, UINT, WPARAM, LPARAM);
 #define WM_UNKNOWN				0x43E
 
-static LRESULT CALLBACK TopLevelWindowProcEx(CALLPROC DefaultCallWindowProc, HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK TopLevelWindowProcEx(CALLPROC DefaultCallWindowProc, WNDPROC PrevWndProc, HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	ApiName("TopLevelWindowProcEx");
 	LPCSTR lpAnsiWindowName = NULL, lpAnsiClassName = NULL;
@@ -148,8 +148,6 @@ static LRESULT CALLBACK TopLevelWindowProcEx(CALLPROC DefaultCallWindowProc, HWN
 	OutDebugLOC("%s: hwnd=%x(%s) msg=%x(%s) wparam=%x lparam=%x\n",
 		ApiRef, hWnd, IsWindowUnicode(hWnd) ? "WIDE" : "ASCII", uMsg, ExplainWinMessage(uMsg), wParam, lParam);
 
-	NTLEA_WND_ASC_DATA* wndasc = CheckProp(hWnd);
-	WNDPROC PrevWndProc = wndasc->PrevAnsiWindowProc;
 	++GetTlsValueInternal()->InternalCall; // <---
 
 //	char classname[256]; GetClassNameA(hWnd, classname, sizeof(classname));
@@ -399,13 +397,17 @@ static LRESULT CALLBACK TopLevelWindowProcEx(CALLPROC DefaultCallWindowProc, HWN
 static LRESULT CALLBACK TopLevelWindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	// for normal custom window case : other messages also needs handled by named-controls (children) 
-	return TopLevelWindowProcEx(pCallWindowProcA, hWnd, uMsg, wParam, lParam);
+	NTLEA_WND_ASC_DATA* wndasc = CheckProp(hWnd);
+	WNDPROC PrevWndProc = wndasc->PrevAnsiWindowProc;
+	return TopLevelWindowProcEx(pCallWindowProcA, PrevWndProc, hWnd, uMsg, wParam, lParam);
 }
 
 static LRESULT CALLBACK TopLevelSimpleProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	// for predefined window case : other messages won't pass to named-controls (children)
-	return TopLevelWindowProcEx(pCallWindowProcA, hWnd, uMsg, wParam, lParam);
+	NTLEA_WND_ASC_DATA* wndasc = CheckProp(hWnd);
+	WNDPROC PrevWndProc = wndasc->PrevAnsiWindowProc;
+	return TopLevelWindowProcEx(pCallWindowProcA, PrevWndProc, hWnd, uMsg, wParam, lParam);
 }
 
 static void SetTopWindowProc(NTLEA_TLS_DATA* p, HWND hWnd, LONG_PTR TopLevelWndProc)

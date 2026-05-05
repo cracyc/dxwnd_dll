@@ -527,10 +527,12 @@ HRESULT STDAPICALLTYPE extCoCreateInstance(REFCLSID rclsid, LPUNKNOWN pUnkOuter,
 
 	if(res = FilterGUID(ApiRef, rclsid, riid)) return res;
 
-	bRecursedHook = TRUE;
 	// v2.04.49: added try-except condition to handle the case where the pCoCreateInstance pointer read from IAT
 	// is no longer valid when later used. It happens with "Gods - Lands of Infinity Special Edition" and could
 	// be avoided also by using hot patching hooks, but this way is better.
+	// v2.06.14: added semaphore to prevent exception handler to bypass the try/except statements
+	bRecursedHook = TRUE;
+	hookSemaphore = TRUE;
 	__try {
 		res=(*pCoCreateInstance)(rclsid, pUnkOuter, dwClsContext, riid, ppv);
 	}
@@ -541,6 +543,7 @@ HRESULT STDAPICALLTYPE extCoCreateInstance(REFCLSID rclsid, LPUNKNOWN pUnkOuter,
 		OutTraceDW("%s: renewed hook ptr=%#x->%#x\n", ApiRef, prevhook, pCoCreateInstance);
 		res=(*pCoCreateInstance)(rclsid, pUnkOuter, dwClsContext, riid, ppv);
 	}
+	hookSemaphore = FALSE;
 	bRecursedHook = FALSE;
 	if(res) {
 		OutErrorCOM("%s: ERROR res=%#x(%s)\n", ApiRef, res, ExplainCoCError(res));

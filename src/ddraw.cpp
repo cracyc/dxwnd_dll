@@ -43,6 +43,8 @@ extern void ddForceD3D9on12(void);
 extern HRESULT FlipToOverlay(ApiArg, int, LPDIRECTDRAWSURFACE, LPRECT, LPRECT);
 extern HRESULT WINAPI extQueryInterfaceDX(char *, int, QueryInterface_Type, void *, REFIID, LPVOID *);
 extern BOOL ddNotifyFunction();
+extern void dxwXMirrorBlt(char *, int, LPDIRECTDRAWSURFACE, LPRECT, LPDIRECTDRAWSURFACE, LPRECT);
+extern void dxwYMirrorBlt(char *, int, LPDIRECTDRAWSURFACE, LPRECT, LPDIRECTDRAWSURFACE, LPRECT);
 
 ColorConversion_Type pColorConversion = NULL;
 
@@ -4408,6 +4410,7 @@ HRESULT WINAPI extBlt(ApiArg, int dxversion, Blt_Type pBlt, LPDIRECTDRAWSURFACE 
 	LPDIRECTDRAWSURFACE lpddssrc, LPRECT lpsrcrect, DWORD dwflags, LPDDBLTFX lpddbltfx)
 {
 	HRESULT res;
+	DDBLTFX ddbltfx;
 
 #ifndef DXW_NOTRACES
 	if(IsTraceDDRAW){
@@ -4478,6 +4481,14 @@ HRESULT WINAPI extBlt(ApiArg, int dxversion, Blt_Type pBlt, LPDIRECTDRAWSURFACE 
 	}
 #endif // DXW_NOTRACES
 
+	if((dxw.dwDFlags2 & (FORCEXMIRRORING|FORCEYMIRRORING)) && (lpddssrc != 0)){
+		memset(&ddbltfx, 0, sizeof(DDBLTFX));
+		ddbltfx.dwSize = sizeof(DDBLTFX);
+		lpddbltfx = &ddbltfx;
+		if(dxw.dwDFlags2 & FORCEXMIRRORING) lpddbltfx->dwDDFX = DDBLTFX_MIRRORLEFTRIGHT;
+		if(dxw.dwDFlags2 & FORCEYMIRRORING) lpddbltfx->dwDDFX = DDBLTFX_MIRRORUPDOWN;
+	}
+
 	if ((dxw.dwFlags16 & FULLRECTBLT) && dxwss.IsAPrimarySurface(lpdds)){
 		lpsrcrect=NULL;
 		lpdestrect=NULL;
@@ -4490,33 +4501,15 @@ HRESULT WINAPI extBlt(ApiArg, int dxversion, Blt_Type pBlt, LPDIRECTDRAWSURFACE 
 		}
 	}
 
-	if((dxw.dwFlags20 & EMULATEXMIRRORING) && lpddbltfx && (lpddbltfx->dwDDFX == DDBLTFX_MIRRORLEFTRIGHT)) {
-		DDSURFACEDESC2 ddsd, ddsdsrc;
-		HDC hSrc, hDst;
-		int dwSize = (dxversion<4)?sizeof(DDSURFACEDESC):sizeof(DDSURFACEDESC2);
-		memset(&ddsd, 0, dwSize);
-		memset(&ddsdsrc, 0, dwSize);
-		ddsd.dwSize = dwSize;
-		ddsdsrc.dwSize = dwSize;
-		res = (*pGetSurfaceDescMethod(dxversion))((LPDIRECTDRAWSURFACE2)lpdds, &ddsd);
-		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
-		res = (*pGetSurfaceDescMethod(dxversion))((LPDIRECTDRAWSURFACE2)lpddssrc, &ddsdsrc);
-		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
-		res=(*pGetDCMethod())(lpddssrc, &hSrc);
-		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
-		res=(*pGetDCMethod())(lpdds, &hDst);
-		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
-		//res=(*pGDIStretchBlt)(hDst, 0, 0, ddsd.dwWidth, ddsd.dwHeight, hSrc, 0, 0, ddsdsrc.dwWidth, ddsdsrc.dwHeight, SRCCOPY);
-		//res=(*pGDIStretchBlt)(hDst, ddsd.dwWidth, 0, 0, ddsd.dwHeight, hSrc, 0, 0, ddsdsrc.dwWidth, ddsdsrc.dwHeight, NULL);
-		//res=(*pGDIStretchBlt)(hDst, ddsd.dwWidth, 0, -(ddsd.dwWidth), ddsd.dwHeight, hSrc, 0, 0, ddsdsrc.dwWidth, ddsdsrc.dwHeight, SRCCOPY);
-		res=(*pGDIStretchBlt)(hDst, ddsd.dwWidth, 0, -(int)(ddsd.dwWidth), ddsd.dwHeight, hSrc, 0, 0, ddsdsrc.dwWidth - 1, ddsdsrc.dwHeight, SRCCOPY);
-		if(!res) OutTrace("%s: XMIRRORING err=%d @%d\n", GetLastError(), __LINE__);
-		res=(*pUnlockMethod(dxversion))(lpdds, lpdestrect);
-		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
-		res=(*pUnlockMethod(dxversion))(lpddssrc, lpsrcrect);
-		if(res) OutTrace("%s: XMIRRORING err=%#x(%s) @%d\n", ApiRef, res, ExplainDDError(res), __LINE__);
-		// do not generate errors
-		return DD_OK;
+	if(lpddbltfx){
+		if((dxw.dwFlags20 & EMULATEXMIRRORING) && (lpddbltfx->dwDDFX == DDBLTFX_MIRRORLEFTRIGHT)) {
+			dxwXMirrorBlt(ApiRef, dxversion, lpdds, lpdestrect, lpddssrc, lpsrcrect);
+			return DD_OK;
+		}
+		if((dxw.dwFlags20 & EMULATEYMIRRORING) && (lpddbltfx->dwDDFX == DDBLTFX_MIRRORUPDOWN)) {
+			dxwYMirrorBlt(ApiRef, dxversion, lpdds, lpdestrect, lpddssrc, lpsrcrect);
+			return DD_OK;
+		}
 	}
 
 	if(dxw.dwFlags19 & EMULATECLIPPER){
@@ -5110,7 +5103,7 @@ HRESULT WINAPI extSetEntries(LPDIRECTDRAWPALETTE lpddp, DWORD dwflags, DWORD dws
 
 	OutTraceDDRAW("%s: lpddp=%#x dwFlags=%#x, start=%d, count=%d entries=%#x\n", //GHO: added trace infos
 		ApiRef, lpddp, dwflags, dwstart, dwcount, lpentries);
-	if(IsDebugDW) dxw.DumpPalette(dwcount, &lpentries[dwstart]);
+	if(IsDebugDW) dxw.DumpPalette(dwcount, lpentries); // v2.06.14 fix: logging the correct values
 
 	// v2.05.53: check palette overflow
 	if(dwcount > 256) {
@@ -5121,7 +5114,7 @@ HRESULT WINAPI extSetEntries(LPDIRECTDRAWPALETTE lpddp, DWORD dwflags, DWORD dws
 	// v2.05.53: palette revised
 	// v2.06.11: palette revised
 	if((dxw.IsEmulated) && (lpDDP == lpddp)){ 
-		OutTraceDW("%s: update PRIMARY palette lpDDP=%#x\n", ApiRef, lpddp);
+		OutTraceDW("%s: update PRIMARY palette lpDDP=%#x static=%d\n", ApiRef, lpddp, nStatCols);
 		if(dwstart < nStatCols){
 			dwcount = dwcount - nStatCols + dwstart;
 			dwstart = nStatCols;
@@ -5131,7 +5124,10 @@ HRESULT WINAPI extSetEntries(LPDIRECTDRAWPALETTE lpddp, DWORD dwflags, DWORD dws
 				ApiRef, nStatCols, dwstart, dwcount);
 			dwcount = 256 - dwstart - nStatCols;
 		}
-		if((int)dwcount < 0) dwcount = 0;
+		if((int)dwcount < 0) {
+			OutTraceDW("%s: ASSERT dwcount<0\n", ApiRef); 
+			dwcount = 0;
+		}
 
 		mySetPalette(dwstart, dwcount, lpentries);
 		// v2.05.80: fix for palette first and last entry when DDPCAPS_ALLOW256 is not set.
@@ -5760,6 +5756,10 @@ HRESULT WINAPI extReleaseDC(ApiArg, int dxversion, ReleaseDC_Type pReleaseDC, LP
 	}
 	_if(res) OutErrorDDRAW("%s: ERROR res=%#x(%s)\n", ApiRef, res, ExplainDDError(res));
 	if(dxw.dwFlags1 & SUPPRESSDXERRORS) res=DD_OK;
+#ifndef DXW_NOTRACES
+	extern void DumpFullHDC(char *, HDC);
+	if((dxw.dwDFlags & DUMPDEVCONTEXT) && dxw.bCustomKeyToggle) DumpFullHDC("ReleaseDC", hdc);
+#endif // DXW_NOTRACES
 	return res;
 }
 
