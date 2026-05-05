@@ -3388,7 +3388,10 @@ DWORD WINAPI extGetFileAttributesA(LPCSTR lpFileName)
 	// v2.04.91: curiously, folders in CD drives don't get the FILE_ATTRIBUTE_READONLY but only
 	// keep FILE_ATTRIBUTE_DIRECTORY. Fixes "Scooby Doo Case File #1".
 	OutTraceSYS("%s: attributes=%#x\n", ApiRef, ret);
-	if(mapping == DXW_FAKE_CD) ret = GetFakeAttribute(ret);
+	if(mapping == DXW_FAKE_CD) {
+		ret = GetFakeAttribute(ret);
+		OutTraceSYS("%s: fixed CD attributes=%#x\n", ApiRef, ret);
+	}
 	return ret;
 }
 

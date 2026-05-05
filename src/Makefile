@@ -52,6 +52,7 @@ OBJS = \
     $(OUTDIR)\ddraw.obj \
     $(OUTDIR)\ddraw.createsurface.obj \
     $(OUTDIR)\ddraw.ddrawex.obj \
+    $(OUTDIR)\ddraw.mirrorblt.obj \
     $(OUTDIR)\ddshot.obj \
     $(OUTDIR)\ddtexture.obj \
     $(OUTDIR)\dibdump.obj \

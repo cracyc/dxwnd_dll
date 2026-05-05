@@ -1,4 +1,4 @@
-﻿#define _WIN32_WINNT 0x0600
+#define _WIN32_WINNT 0x0600
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NON_CONFORMING_SWPRINTFS
@@ -1141,7 +1141,8 @@ LONG WINAPI intChangeDisplaySettings(ApiArg, BOOL WideChar, void *lpDevMode, DWO
 			dxw.SetScreenSize(
 				(dmFields & DM_PELSWIDTH) ? dmPelsWidth : dxw.GetScreenWidth(),
 				(dmFields & DM_PELSHEIGHT) ? dmPelsHeight : dxw.GetScreenHeight());
-			if(dmFields & DM_BITSPERPEL) dxw.VirtualPixelFormat.dwRGBBitCount = dmPelsWidth;
+			//if(dmFields & DM_BITSPERPEL) dxw.VirtualPixelFormat.dwRGBBitCount = dmPelsWidth;
+			if(dmFields & DM_BITSPERPEL) dxw.VirtualPixelFormat.dwRGBBitCount = dmBitsPerPel; // v2.06.14 fix !!!
 			// should make a limits check here ...
 			GetHookInfo()->Height=(short)dxw.GetScreenHeight();
 			GetHookInfo()->Width=(short)dxw.GetScreenWidth();
@@ -3880,7 +3881,9 @@ HWND WINAPI extCreateWindowExA(
 		}
 	}
 
-	if((dxw.dwFlags11 & CUSTOMLOCALE) && pCreateWindowExW && !(dxw.dwFlags14 & NOSETTEXT)){
+	if((dxw.dwFlags11 & CUSTOMLOCALE) && 
+		pCreateWindowExW && 
+		!(dxw.dwFlags14 & NOSETTEXT)){
 		OutTraceGDI("%s: using WIDECHAR call\n", ApiRef);
 		extern __inline NTLEA_TLS_DATA* GetTlsValueInternal(void);
 		extern void InstallCbtHook(NTLEA_TLS_DATA * ptls);
@@ -3900,7 +3903,7 @@ HWND WINAPI extCreateWindowExA(
 			lpClassNameW = (WCHAR *)malloc((n + 1) * sizeof(WCHAR));
 			n = (*pMultiByteToWideChar)(dxw.CodePage, 0, lpClassName, len, lpClassNameW, len);
 			lpClassNameW[n]=0;
-			OutTraceLOC("%s: WIDE class=\"%ls\"\n", ApiRef, lpWindowNameW);
+			OutTraceLOC("%s: WIDE class=\"%ls\"\n", ApiRef, lpClassNameW);
 		}
 		if(lpWindowName) {
 			OutTraceLOC("%s: ANSI wname=\"%s\"\n", ApiRef, lpWindowName);
@@ -3956,6 +3959,7 @@ extern void ExplainMsg(char *, BOOL, HWND, UINT, WPARAM, LPARAM);
 #endif
 
 extern LRESULT CALLBACK DefConversionProc(char *, LPVOID, HWND, HWND, BOOL, INT, WPARAM, LPARAM);
+extern LRESULT CALLBACK TopLevelWindowProcEx(CallWindowProc_Type, WNDPROC, HWND, UINT, WPARAM, LPARAM);
 
 LRESULT WINAPI extCallWindowProcCommon(char *api, CallWindowProc_Type pCallWindowProc, BOOL isAnsi,
 									   WNDPROC lpPrevWndFunc, HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
@@ -3972,7 +3976,11 @@ LRESULT WINAPI extCallWindowProcCommon(char *api, CallWindowProc_Type pCallWindo
 
 	if(!FixWindowProc(api, hwnd, Msg, &wParam, &lParam, &res)) return res;
 
-	res = (*pCallWindowProc)(lpPrevWndFunc, hwnd, Msg, wParam, lParam);
+	//res = (*pCallWindowProc)(lpPrevWndFunc, hwnd, Msg, wParam, lParam);
+	if((dxw.dwFlags11 & CUSTOMLOCALE) && ((UINT_PTR)lpPrevWndFunc != (UINT_PTR)TopLevelWindowProcEx))
+		res = TopLevelWindowProcEx(pCallWindowProcA, lpPrevWndFunc, hwnd, Msg, wParam, lParam);
+	else
+		res = (*pCallWindowProc)(lpPrevWndFunc, hwnd, Msg, wParam, lParam);
 	return res;
 }
 
