@@ -48,7 +48,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #else
 #define TRACESUFFIX 
 #endif
-#define VERSION "v2.06.14.wip12" DEBUGSUFFIX STREAMSUFFIX TRACESUFFIX
+#define VERSION "v2.06.14.rc12" DEBUGSUFFIX STREAMSUFFIX TRACESUFFIX
 
 #define DDTHREADLOCK 1
 
