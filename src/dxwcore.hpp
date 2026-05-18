@@ -557,6 +557,8 @@ public:
 	void PutSize(HWND, int, int);
 	BOOL GetSize(HWND, int *, int *);
 	WNDPROC GetProc(HWND);
+	BOOL dxwWStack::Get(int, HWND *);
+
 
 private:
 	wndstack_entry *WhndStack;

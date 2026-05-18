@@ -577,11 +577,17 @@ HRESULT WINAPI extDSSetCooperativeLevel(void *lpds, HWND hwnd, DWORD dwLevel)
 		else dwLevel = DSSCL_NORMAL; // v2.05.15: "Wheel of Time" ...
 		OutTraceSND("%s: PATCH level=%s hwnd=%#x\n", ApiRef, ExplainLevel(dwLevel), hwnd);
 	}
-	// v2.05.38 fix: "Championship Manager 2006"
-	if((dwLevel == DSSCL_NORMAL) && (hwnd == 0)){
-		if(dxw.GethWnd()) hwnd=dxw.GethWnd(); // 
-		// else dwLevel = DSSCL_EXCLUSIVE; // else ???
-		OutTraceSND("%s: PATCH level=%s hwnd=%#x\n", ApiRef, ExplainLevel(dwLevel), hwnd);
+	//// v2.05.38 fix: "Championship Manager 2006"
+	//if((dwLevel == DSSCL_NORMAL) && (hwnd == 0)){
+	//	if(dxw.GethWnd()) hwnd=dxw.GethWnd(); // 
+	//	// else dwLevel = DSSCL_EXCLUSIVE; // else ???
+	//	OutTraceSND("%s: PATCH level=%s hwnd=%#x\n", ApiRef, ExplainLevel(dwLevel), hwnd);
+	//}
+	// v2.06.14 fix: @#@ "Championship Manager 2006", "Langrisser I"
+	if((dwLevel != DSSCL_EXCLUSIVE) && (hwnd == 0)){
+		if(dxw.GethWnd()) hwnd = dxw.GethWnd(); // 
+		else hwnd = GetDesktopWindow();
+		OutTraceSND("%s: PATCH hwnd=%#x\n", ApiRef, hwnd);
 	}
 
 	res = (*pDSSetCooperativeLevel)(lpds, hwnd, dwLevel);

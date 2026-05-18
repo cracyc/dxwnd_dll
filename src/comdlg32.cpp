@@ -8,6 +8,7 @@
 #include "syslibs.h"
 #include "dxhook.h"
 #include "dxhelper.h"
+#include "commdlg.h"
 
 typedef BOOL (WINAPI *GetFileNameA_Type)(LPOPENFILENAMEA);
 typedef BOOL (WINAPI *GetFileNameW_Type)(LPOPENFILENAMEW);
@@ -54,9 +55,11 @@ BOOL WINAPI extGetSaveFileNameA(LPOPENFILENAMEA lpofn)
 	ApiName("GetSaveFileNameA");
 	FullScreen = dxw.IsFullScreen();
 	OutTraceSYS("%s: FullScreen=%#x\n", ApiRef, FullScreen);
-	dxw.ClearFullScreen();
 	if(dxw.dwFlags15 & FIXFILEDIALOG) lpofn->Flags &= ~(OFN_EXPLORER | OFN_ENABLEHOOK);
-	ret = (*pGetSaveFileNameA)(lpofn);
+	dxw.ClearFullScreen();
+	hookSemaphore = TRUE;
+	__try { ret = (*pGetSaveFileNameA)(lpofn); } __except(EXCEPTION_EXECUTE_HANDLER) { ret = TRUE; }
+	hookSemaphore = FALSE;
 	dxw.SetFullScreen(FullScreen);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
@@ -134,7 +137,9 @@ BOOL WINAPI extGetOpenFileNameA(LPOPENFILENAMEA lpofn)
 			if(mapping != DXW_NO_FAKE) OutTraceDW("%s: remapped InitialDir=\"%s\"\n", ApiRef, lpofn->lpstrInitialDir);
 		}
 	}
-	ret = (*pGetOpenFileNameA)(lpofn);
+	hookSemaphore = TRUE;
+	__try { ret = (*pGetOpenFileNameA)(lpofn); } __except(EXCEPTION_EXECUTE_HANDLER) { ret = TRUE; }
+	hookSemaphore = FALSE;
 	dxw.SetFullScreen(FullScreen);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
@@ -177,7 +182,9 @@ BOOL WINAPI extGetSaveFileNameW(LPOPENFILENAMEW lpofn)
 			if(mapping != DXW_NO_FAKE) OutTraceDW("%s: remapped InitialDir=\"%ls\"\n", ApiRef, lpofn->lpstrInitialDir);
 		}
 	}
-	ret = (*pGetSaveFileNameW)(lpofn);
+	hookSemaphore = TRUE;
+	__try { ret = (*pGetSaveFileNameW)(lpofn); } __except(EXCEPTION_EXECUTE_HANDLER) { ret = TRUE; }
+	hookSemaphore = FALSE;
 	dxw.SetFullScreen(FullScreen);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
@@ -191,7 +198,9 @@ BOOL WINAPI extGetOpenFileNameW(LPOPENFILENAMEW lpofn)
 	OutTraceSYS("%s: FullScreen=%#x\n", ApiRef, FullScreen);
 	dxw.ClearFullScreen();
 	if(dxw.dwFlags15 & FIXFILEDIALOG) lpofn->Flags &= ~(OFN_EXPLORER | OFN_ENABLEHOOK);
-	ret = (*pGetOpenFileNameW)(lpofn);
+	hookSemaphore = TRUE;
+	__try { ret = (*pGetOpenFileNameW)(lpofn); } __except(EXCEPTION_EXECUTE_HANDLER) { ret = TRUE; }
+	hookSemaphore = FALSE;
 	dxw.SetFullScreen(FullScreen);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
@@ -206,7 +215,9 @@ BOOL WINAPI extPrintDlgA(LPPRINTDLGA lppd)
 	FullScreen = dxw.IsFullScreen();
 	OutTraceSYS("%s: FullScreen=%#x\n", ApiRef, FullScreen);
 	dxw.ClearFullScreen();
-	__try { ret = (*pPrintDlgA)(lppd); } __except(EXCEPTION_EXECUTE_HANDLER) { ret = 0; }
+	hookSemaphore = TRUE;
+	__try { ret = (*pPrintDlgA)(lppd); } __except(EXCEPTION_EXECUTE_HANDLER) { ret = TRUE; }
+	hookSemaphore = FALSE;
 	dxw.SetFullScreen(FullScreen);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
@@ -219,7 +230,9 @@ BOOL WINAPI extPrintDlgW(LPPRINTDLGW lppd)
 	FullScreen = dxw.IsFullScreen();
 	OutTraceSYS("%s: FullScreen=%#x\n", ApiRef, FullScreen);
 	dxw.ClearFullScreen();
-	__try { ret = (*pPrintDlgW)(lppd); } __except(EXCEPTION_EXECUTE_HANDLER) { ret = 0; }
+	hookSemaphore = TRUE;
+	__try { ret = (*pPrintDlgW)(lppd); } __except(EXCEPTION_EXECUTE_HANDLER) { ret = TRUE; }
+	hookSemaphore = FALSE;
 	dxw.SetFullScreen(FullScreen);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;

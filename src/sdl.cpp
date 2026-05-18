@@ -233,6 +233,7 @@ typedef int (*SDL_GetRendererOutputSize_Type)(SDL_Renderer *, int *, int *);
 typedef void (*SDL_PumpEvents_Type)(void);
 typedef void (*SDL_FlushEvent_Type)(Uint32);
 typedef void (*SDL_FlushEvents_Type)(Uint32, Uint32);
+typedef Uint32 (*SDL_GetGlobalMouseState_Type)(float *, float *);
 
 SDL_GetError_Type pSDL_GetError = NULL;
 SDL_Init_Type pSDL_Init, pSDL_InitSubSystem;
@@ -325,6 +326,7 @@ SDL_GetRendererOutputSize_Type pSDL_GetRendererOutputSize;
 SDL_PumpEvents_Type pSDL_PumpEvents;
 SDL_FlushEvent_Type pSDL_FlushEvent;
 SDL_FlushEvents_Type pSDL_FlushEvents;
+SDL_GetGlobalMouseState_Type pSDL_GetGlobalMouseState;
 
 SDL_BlitSurface_Type pStretch = NULL;
 
@@ -428,6 +430,7 @@ int extSDL_GetRendererOutputSize(SDL_Renderer *, int *, int *);
 void extSDL_PumpEvents(void);
 void extSDL_FlushEvent(Uint32);
 void extSDL_FlushEvents(Uint32, Uint32);
+Uint32 extSDL_GetGlobalMouseState(float *, float *);
 
 static void Stopper(char *s, int line)
 {
@@ -504,6 +507,7 @@ static HookEntryEx_Type Hooks[]={
 	{HOOK_IAT_CANDIDATE, 0, "SDL_PumpEvents", (FARPROC)NULL, (FARPROC *)&pSDL_PumpEvents, (FARPROC)extSDL_PumpEvents},
 	{HOOK_IAT_CANDIDATE, 0, "SDL_FlushEvent", (FARPROC)NULL, (FARPROC *)&pSDL_FlushEvent, (FARPROC)extSDL_FlushEvent},
 	{HOOK_IAT_CANDIDATE, 0, "SDL_FlushEvents", (FARPROC)NULL, (FARPROC *)&pSDL_FlushEvents, (FARPROC)extSDL_FlushEvents},
+	{HOOK_IAT_CANDIDATE, 0, "SDL_GetGlobalMouseState", (FARPROC)NULL, (FARPROC *)&pSDL_GetGlobalMouseState, (FARPROC)extSDL_GetGlobalMouseState},
 
 	{HOOK_IAT_CANDIDATE, 0, 0, NULL, 0, 0} // terminator
 }; 
@@ -1405,6 +1409,32 @@ Uint32 extSDL_GetRelativeMouseState(int* x, int* y)
 	}
 	if(x) GetHookInfo()->SDLCursorX = (short)(dxw.GetScreenWidth() / 2 + *x);
 	if(y) GetHookInfo()->SDLCursorY = (short)(dxw.GetScreenHeight() / 2 + *y);
+	return ret;
+}
+
+Uint32 extSDL_GetGlobalMouseState(float *x, float *y)
+{
+	Uint32 ret;
+	ApiName("SDL_GetGlobalMouseState");
+
+	ret = (*pSDL_GetGlobalMouseState)(x, y);
+	if(x && y){
+		//if(dxw.dwFlags18 & SDLFIXMOUSE){
+		//	//int px, py;
+		//	//px = *x; py = *y;
+		//	//dxw.UnmapClient(x, y);
+		//	//OutTraceC("%s: FIXED pos=(%d,%d)->(%d,%d) ret=%#x\n", ApiRef, px, py, *x, *y, ret);
+		//	OutTraceC("%s: pos=(%f,%f) ret=%#x\n", ApiRef, *x, *y, ret);
+		//}
+		//else {
+			OutTraceC("%s: pos=(%f,%f) ret=%#x\n", ApiRef, *x, *y, ret);
+		//}
+	}
+	else{
+		OutTraceC("%s: ret=%#x\n", ApiRef, ret);
+	}
+	//if(x) GetHookInfo()->SDLCursorX = (short)(dxw.GetScreenWidth() / 2 + *x);
+	//if(y) GetHookInfo()->SDLCursorY = (short)(dxw.GetScreenHeight() / 2 + *y);
 	return ret;
 }
 

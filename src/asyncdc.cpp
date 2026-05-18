@@ -174,7 +174,7 @@ BOOL AsyncDC::RefreshDC()
 	ret = (*pGDIStretchBlt)(wdc, 0, 0, WinRect.right, WinRect.bottom, CacheHDC, 0, 0, CacheRect.right, CacheRect.bottom, SRCCOPY);
 	_if(!ret) OutTraceE("%s: StretchBlt ERROR err=%d at=%d\n", ApiRef, GetLastError(), __LINE__);
 
-	(*pInvalidateRect)(hwnd, NULL, 0);
+	(*pInvalidateRect)(hwnd, NULL, FALSE);
 
 	ret = (*pGDIReleaseDC)(hwnd, wdc); // fixed DC leakage
 	_if(!ret) OutTraceE("%s: ReleaseDC ERROR hwnd=%#x hdc=%#x err=%d at=%d\n",
