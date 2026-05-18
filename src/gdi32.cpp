@@ -3496,13 +3496,13 @@ BOOL WINAPI extSetViewportOrgEx(HDC hdc, int X, int Y, LPPOINT lpPoint)
 	OutTraceGDI("%s: hdc=%#x pos=(%d,%d)\n", ApiRef, hdc, X, Y);
 
  	if (dxw.IsToRemap(hdc)){
-		dxw.MapClient(&X, &Y);
+		dxw.MapWindow(&X, &Y); // fix v2.06.14
 		OutTraceGDI("%s: fixed origin=(%d,%d)\n", ApiRef, X, Y);
 	}
 	ret=(*pSetViewportOrgEx)(hdc, X, Y, lpPoint);
 	if(ret && lpPoint) {
 		OutTraceGDI("%s: previous ViewPortOrg=(%d,%d)\n", ApiRef, lpPoint->x, lpPoint->y);
-		dxw.UnmapClient(lpPoint);
+		dxw.UnmapWindow(lpPoint);
 		OutTraceGDI("%s: fixed previous ViewPort=(%d,%d)\n", ApiRef, lpPoint->x, lpPoint->y);
 	}
 
@@ -3535,7 +3535,7 @@ BOOL WINAPI extGetViewportOrgEx(HDC hdc, LPPOINT lpPoint)
 
 	ret=(*pGetViewportOrgEx)(hdc, lpPoint);
  	if (dxw.IsToRemap(hdc)){
-		dxw.UnmapClient(lpPoint);
+		dxw.UnmapWindow(lpPoint); // fix v2.06.14
 		OutTraceGDI("%s: fixed ViewportOrg=(%d,%d)\n", ApiRef, lpPoint->x, lpPoint->y);
 	}
 

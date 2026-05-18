@@ -595,7 +595,34 @@ static void D3D9FrameBlit()
 
 static DWORD WINAPI D3D9AsyncThread(LPVOID lpParameter)
 {
+	ApiName("D3D9AsyncThread");
 	while(TRUE){
+		//--------------------------------------------
+
+		if(g_d3d9.bits_per_pixel != dxw.VirtualPixelFormat.dwRGBBitCount) {
+			OutDebug("%s: D3D9 renderer color switch %d->%d\n", ApiRef, g_d3d9.bits_per_pixel, dxw.VirtualPixelFormat.dwRGBBitCount);
+			d3d9_release();
+			memset(&g_d3d9, 0, sizeof(g_d3d9));
+			g_d3d9.hmodule = NULL;
+			g_ddraw->bpp = dxw.VirtualPixelFormat.dwRGBBitCount;
+			g_ddraw->windowed = dxw.Windowize;
+			g_ddraw->hwnd = dxw.GethWnd();
+			g_ddraw->d3d9linear = TRUE; // ???
+			g_ddraw->viewport.x = 0;
+			g_ddraw->viewport.y = 0;
+			g_ddraw->viewport.width = dxw.iSizX;
+			g_ddraw->viewport.height = dxw.iSizY;
+			g_ddraw->width = dxw.GetScreenWidth();
+			g_ddraw->height = dxw.GetScreenHeight();
+			g_ddraw->palette_updated = TRUE; // ???
+			dxw.bAsybcBlitStarted = TRUE;
+			if(!d3d9_create()) {
+				OutErrorD3D("%s: d3d9_create ERROR @%d\n", ApiRef, __LINE__);
+				return -1;
+			}
+		}
+
+		//--------------------------------------------
 		extern void LimitFrameHz(DWORD);  
 		LimitFrameHz(60);
 
@@ -668,6 +695,12 @@ HRESULT D3D9SyncBlitter(int dxversion, Blt_Type pBlt, char *api, LPDIRECTDRAWSUR
 {
 	HRESULT res;
 	OutDebug("D3D9SyncBlitter\n");
+
+	if(g_d3d9.bits_per_pixel != dxw.VirtualPixelFormat.dwRGBBitCount) {
+		OutDebug("%s: D3D9 renderer color switch %d->%d\n", ApiRef, g_d3d9.bits_per_pixel, dxw.VirtualPixelFormat.dwRGBBitCount);
+		d3d9_release();
+		dxw.bAsybcBlitStarted = FALSE;
+	}
 
 	if(!dxw.bAsybcBlitStarted) {
 		memset(&g_d3d9, 0, sizeof(g_d3d9));

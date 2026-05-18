@@ -53,6 +53,7 @@ typedef LPVOID (CDECL *realloc_Type)(LPVOID, size_t);
 typedef VOID (CDECL *free_Type)(LPVOID);
 typedef FILE * (CDECL *fopen_Type)(const char *, const char *);
 typedef int (CDECL *_open_Type)(const char *, int, int);
+typedef int (CDECL *_sopen_Type)(const char *, int, int, int);
 typedef void (CDECL *__set_app_type_Type)(int);
 typedef void (CDECL *_initterm_Type)(LPVOID, LPVOID);
 
@@ -61,6 +62,7 @@ realloc_Type prealloc;
 free_Type pfree;
 fopen_Type pfopen;
 _open_Type p_open;
+_sopen_Type p_sopen;
 __set_app_type_Type p__set_app_type;
 _initterm_Type p_initterm;
 
@@ -69,6 +71,7 @@ LPVOID CDECL extrealloc(LPVOID, size_t);
 VOID CDECL extfree(LPVOID);
 FILE * CDECL extfopen(const char *, const char *);
 int CDECL ext_open(const char *, int, int);
+int CDECL ext_sopen(const char *, int, int, int);
 void CDECL ext__set_app_type(int);
 void CDECL ext_initterm(LPVOID, LPVOID);
 
@@ -161,6 +164,7 @@ static HookEntryEx_Type HooksAlloc[]={
 static HookEntryEx_Type HooksFiles[]={
 	{HOOK_IAT_CANDIDATE, 0x0000, "fopen", (FARPROC)NULL, (FARPROC *)&pfopen, (FARPROC)extfopen},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_open", (FARPROC)NULL, (FARPROC *)&p_open, (FARPROC)ext_open},
+	{HOOK_IAT_CANDIDATE, 0x0000, "_sopen", (FARPROC)NULL, (FARPROC *)&p_sopen, (FARPROC)ext_sopen},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_stat", (FARPROC)NULL, (FARPROC *)&p_stat, (FARPROC)ext_stat},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_access", (FARPROC)NULL, (FARPROC *)&p_access, (FARPROC)ext_access},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_waccess", (FARPROC)NULL, (FARPROC *)&p_waccess, (FARPROC)ext_waccess},
@@ -347,6 +351,32 @@ int CDECL ext_open(const char *fname, int oflag, int mode)
 	}
 
 	ret = (*p_open)(fname, oflag, mode);
+	OutTraceSYS("%s: path=\"%s\" ret(fd)=%#x\n", ApiRef, fname, ret);
+	return ret;
+}
+
+int CDECL ext_sopen(const char *fname, int oflag, int shflag, int pmode)
+{
+	ApiName("_sopen");
+	int ret;
+	OutTraceSYS("%s: path=\"%s\" oflag=%#x shflag=%#x pmode=%#x\n", ApiRef, fname, oflag, pmode);
+
+	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
+		DWORD mapping;
+		fname = dxwTranslatePathA(fname, &mapping);
+
+		// if mapped on virtual CD and write access required, you should fake a no access error code
+		if(mapping == DXW_FAKE_CD){
+			if(oflag & (_O_WRONLY | _O_RDWR | _O_APPEND | _O_CREAT | _O_TRUNC | _O_EXCL)){ 
+				OutTraceDW("%s: simulate ERROR_ACCESS_DENIED on CD\n", ApiRef);
+				// should set lasterror here?
+				SetLastError(ERROR_ACCESS_DENIED);// assuming the file was there, ERROR_FILE_NOT_FOUND otherwise ?
+				return -1;
+			}
+		}
+	}
+
+	ret = (*p_sopen)(fname, oflag, shflag, pmode);
 	OutTraceSYS("%s: path=\"%s\" ret(fd)=%#x\n", ApiRef, fname, ret);
 	return ret;
 }

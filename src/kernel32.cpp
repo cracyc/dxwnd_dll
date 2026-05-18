@@ -791,7 +791,8 @@ void HookKernelModule(HMODULE module, char *libname)
 	HookLibraryEx(module, AllocHooks, libname);
 	HookLibraryEx(module, HeapHooks, libname);
 #else
-	if(dxw.dwFlags6 & LEGACYALLOC) HookLibraryEx(module, AllocHooks, libname);
+	if( (dxw.dwFlags6 & LEGACYALLOC) ||
+		(dxw.dwFlags15 & EMULATEWIN95)) HookLibraryEx(module, AllocHooks, libname);
 	if( (dxw.dwFlags8 & VIRTUALHEAP) || 
 		(dxw.dwFlags14 & SAFEHEAP)) HookLibraryEx(module, HeapHooks, libname);
 #endif // TRACEHEAP
@@ -884,7 +885,8 @@ FARPROC Remap_kernel32_ProcAddress(LPCSTR proc, HMODULE hModule)
 	if (addr=RemapLibraryEx(proc, hModule, AllocHooks)) return addr;
 	if (addr=RemapLibraryEx(proc, hModule, HeapHooks)) return addr;
 #else
-	if(dxw.dwFlags6 & LEGACYALLOC)
+	if((dxw.dwFlags6 & LEGACYALLOC) ||
+		(dxw.dwFlags15 & EMULATEWIN95))
 		if (addr=RemapLibraryEx(proc, hModule, AllocHooks)) return addr;
 
 	if((dxw.dwFlags8 & VIRTUALHEAP) || (dxw.dwFlags14 & SAFEHEAP))
@@ -2220,8 +2222,6 @@ BOOL WINAPI extFreeLibrary(HMODULE hModule)
 		OutErrorSYS("%s ERROR: err=%d\n", ApiRef, GetLastError());
 	}
 
-	//if(dxw.dwDFlags2 & EXPERIMENTAL) ReHook();
-
 	OutTraceDW("%s: ret=%d\n", ApiRef, ret);
 	return ret; 
 }
@@ -2400,7 +2400,7 @@ UINT WINAPI extGetDriveTypeA(LPCSTR lpRootPathName)
 			OutTraceSYS("Vol=%#x\n", Vol);
 			if(!Vol) {
 				OutTraceSYS("%s: HIDECDROMEMPTY - hide CDROM %c:\n", ApiRef, lpRootPathName[0]); 
-				return DRIVE_UNKNOWN;
+				return DRIVE_NO_ROOT_DIR; // v2.06.14: Crazyc fix
 			}
 		}
 
@@ -2412,7 +2412,7 @@ UINT WINAPI extGetDriveTypeA(LPCSTR lpRootPathName)
 			// @#@ "Revival of a Myth Lazenca" (Ko 1997)
 			if(ret == DRIVE_CDROM){
 				OutTraceSYS("%s: HIDECDROMREAL - hide CDROM %c:\n", ApiRef, lpRootPathName[0]); 
-				return DRIVE_UNKNOWN;
+				return DRIVE_NO_ROOT_DIR; // v2.06.14: Crazyc fix
 			}
 		}
 	}
@@ -2467,7 +2467,7 @@ UINT WINAPI extGetDriveTypeW(LPCWSTR lpRootPathName)
 			OutTraceSYS("Vol=%#x\n", Vol);
 			if(!Vol) {
 				OutTraceSYS("%s: HIDECDROMEMPTY - hide CDROM %c:\n", ApiRef, (char)lpRootPathName[0]); 
-				return DRIVE_UNKNOWN;
+				return DRIVE_NO_ROOT_DIR; // v2.06.14: Crazyc fix
 			}
 		}
 
@@ -2476,7 +2476,7 @@ UINT WINAPI extGetDriveTypeW(LPCWSTR lpRootPathName)
 		if(dxw.dwFlags17 & HIDECDROMREAL){
 			if(ret == DRIVE_CDROM){
 				OutTraceSYS("%s: HIDECDROMREAL - hide CDROM %lc:\n", ApiRef, lpRootPathName[0]); 
-				return DRIVE_UNKNOWN;
+				return DRIVE_NO_ROOT_DIR; // v2.06.14: Crazyc fix
 			}
 		}
 	}
@@ -2525,6 +2525,20 @@ DWORD WINAPI extGetLogicalDrives(void)
 				Vol = GetVolumeInformation(RootPathName, NULL, NULL, NULL, 0, 0, 0, 0);
 				OutTraceSYS("Vol=%s status=%#x\n", RootPathName, Vol);
 				if(!Vol) DevMask &= ~DevBit;
+			}
+		}
+	}
+	if (dxw.dwFlags17 & HIDECDROMREAL){ // v2.06.14 added reaad CD exclusion
+		for(int i=0; i<32; i++){
+			DWORD DevBit;
+			UINT VolType;
+			DevBit = 0x1 << i;
+			if(DevMask & DevBit){
+				char RootPathName[10];
+				sprintf_s(RootPathName, 4, "%c:\\", 'A'+i);
+				VolType = (*pGetDriveTypeA)(RootPathName);
+				OutTraceSYS("Vol=%s type=%#x\n", RootPathName, VolType);
+				if(VolType == DRIVE_CDROM) DevMask &= ~DevBit;
 			}
 		}
 	}
@@ -3749,7 +3763,8 @@ DWORD WINAPI extGetLogicalDriveStringsA(DWORD nBufferLength, LPCSTR lpBuffer)
 			if(driveType == DRIVE_CDROM){
 				OutTraceDW("%s: HIDECDROMREAL - hide real CD drive %s\n", ApiRef, p);
 				// delete the drive from the list
-				deviceEraseA(p);			}
+				deviceEraseA(p);			
+			}
 			else {
 				p += strlen(p) + 1;
 			}
@@ -3852,7 +3867,8 @@ DWORD WINAPI extGetLogicalDriveStringsW(DWORD nBufferLength, LPWSTR lpBuffer)
 			if(driveType == DRIVE_CDROM){
 				OutTraceDW("%s: HIDECDROMREAL - hide real CD drive %Ls\n", ApiRef, p);
 				// delete the drive from the list
-				deviceEraseW(p);			}
+				deviceEraseW(p);			
+			}
 			else {
 				p += wcslen(p) + 1;
 			}
@@ -4437,6 +4453,11 @@ LPVOID WINAPI extVirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocatio
 	ApiName("VirtualAlloc");
 
 	OutDebugSYS("%s: lpAddress=%#x size=%#x flag=%#x protect=%#x\n", ApiRef, lpAddress, dwSize, flAllocationType, flProtect);
+
+	// windows 95 uses PAGE_NOACCESS for stack guard while windows nt uses PAGE_GUARD
+	if ((flAllocationType == MEM_COMMIT) && (flProtect == PAGE_NOACCESS) && (dxw.dwFlags15 & EMULATEWIN95))
+		flProtect = PAGE_GUARD | PAGE_READWRITE;
+
 	ret = (*pVirtualAlloc)(lpAddress, dwSize, flAllocationType, flProtect);
 	if((ret == NULL) && lpAddress && (dxw.dwFlags6 & LEGACYALLOC)){
 		OutErrorSYS("%s: RECOVERY lpAddress=%#x size=%#x flag=%#x protect=%#x\n", 
@@ -5133,7 +5154,9 @@ HGLOBAL WINAPI extGlobalFree(HGLOBAL hMem)
 
 	// v2.05.76: recursion fix.
 	static BOOL bRecursed = FALSE;
-	if(bRecursed) return (*pGlobalFree)(hMem);
+	//if(bRecursed) return (*pGlobalFree)(hMem);
+	// v2.06.14 fix: needed for @#@ "I SPY School Days"
+	if(bRecursed) return NULL;
 	bRecursed = TRUE;
 
 	if(dxw.dwFlags14 & HEAPLEAK) {
@@ -6405,7 +6428,7 @@ DWORD WINAPI extSetFilePointer(HANDLE hFile, LONG lDistanceToMove, PLONG lpDista
 {
 	DWORD ret;
 	ApiName("SetFilePointer");
-	OutTraceSYS("%s: hFile=%#x DistanceToMove=0x%lx DistanceToMoveHigh=%#x MoveMethod=%#x\n", 
+	OutTraceSYS("%s: hFile=%#x DistanceToMove=%d DistanceToMoveHigh=%#x MoveMethod=%#x\n", 
 		ApiRef, hFile, lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod);
 	ret = (*pSetFilePointer)(hFile, lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod);
 	if((ret == INVALID_SET_FILE_POINTER) && GetLastError()){

@@ -166,3 +166,10 @@ WNDPROC dxwWStack::GetProc(HWND hwnd)
 #endif
 	return NULL;
 }
+
+BOOL dxwWStack::Get(int index, HWND *hwnd)
+{
+	if(index >= WhndTOS) return FALSE;
+	*hwnd = WhndStack[index].hwnd;
+	return TRUE;
+}

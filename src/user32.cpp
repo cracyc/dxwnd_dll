@@ -4705,7 +4705,7 @@ HDC WINAPI extGDIGetDC(HWND hwnd)
 	HDC ret;
 	OutTraceGDI("%s: hwnd=%#x\n", ApiRef, hwnd);
 	// v2.06.13: also in color emulated mode
-	if(dxw.isColorEmulatedMode || dxw.isWineControlled) ret = (*pGDIGetDC)(hwnd);
+	if(!dxw.Windowize || dxw.isColorEmulatedMode || dxw.isWineControlled) ret = (*pGDIGetDC)(hwnd);
 	else ret = sGetDC(hwnd, ApiRef);
 	OutTraceGDI("%s: hwnd=%#x ret(hdc)=%#x\n", ApiRef, hwnd, ret);
 	return ret;
@@ -4721,7 +4721,7 @@ HDC WINAPI extGDIGetDCEx(HWND hwnd, HRGN hrgnClip, DWORD flags)
 	OutTraceGDI("%s: hwnd=%#x hrgnClip=%#x flags=%#x(%s)\n", ApiRef, hwnd, hrgnClip, flags, ExplainGetDCExFlags(flags, sFlags, 128));
 #endif // DXW_NOTRACES
 	// v2.06.13: also in color emulated mode
-	if(dxw.isColorEmulatedMode || dxw.isWineControlled) ret = (*pGDIGetDCEx)(hwnd, hrgnClip, flags);
+	if(!dxw.Windowize || dxw.isColorEmulatedMode || dxw.isWineControlled) ret = (*pGDIGetDCEx)(hwnd, hrgnClip, flags);
 	else ret = sGetDC(hwnd, ApiRef);
 	OutTraceGDI("%s: hwnd=%#x ret(hdc)=%#x\n", ApiRef, hwnd, ret);
 	return ret;
@@ -6706,7 +6706,6 @@ LRESULT CALLBACK extMessageHookProc(int code, WPARAM wParam, LPARAM lParam)
 
 static POINT FixMousePoint(POINT pt)
 {
-	STEP;
 	dxw.UnmapWindow(&pt);
 #ifdef PROVENTOBEUSEFUL
 	if(dxw.dwFlags20 & CENTERONEXIT){
@@ -10142,12 +10141,22 @@ BOOL WINAPI extEnumDisplayMonitors(HDC hdc, LPCRECT lprcClip, MONITORENUMPROC lp
 {
 	ApiName("EnumDisplayMonitors");
 	BOOL res;
+	BOOL release = FALSE;
 	if(IsTraceGDI){
 		char sRect[81];
 		if(lprcClip) sprintf(sRect, "(%d,%d)-(%d,%d)", lprcClip->left, lprcClip->top, lprcClip->right, lprcClip->bottom);
 		else strcpy(sRect, "NULL");
 		OutTrace("%s: hdc=%#x rect=%s fenum=%#x data=%#x\n", ApiRef, hdc, sRect, lpfnEnum, dwData);
 	}
+
+	// dismount the desktop redirection
+	if(dxw.Windowize && !dxw.isColorEmulatedMode && !dxw.isWineControlled){
+		if(dxw.GethWnd() == WindowFromDC(hdc)){
+			hdc = (*pGDIGetDC)(NULL);
+			release = TRUE;
+		}
+	}
+
 	if(dxw.dwFlags13 & FIXASPECTRATIO){
 		Monitorenumproc_arg arg;
 		arg.lpfnEnum = lpfnEnum;
@@ -10165,6 +10174,7 @@ BOOL WINAPI extEnumDisplayMonitors(HDC hdc, LPCRECT lprcClip, MONITORENUMPROC lp
 		}
 	}
 #endif // DXW_NOTRACES
+	if(release) (*pGDIReleaseDC)(NULL, hdc);
 	return res;
 }
 
