@@ -1,4 +1,4 @@
-#define _WIN32_WINNT 0x0600
+﻿#define _WIN32_WINNT 0x0600
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NON_CONFORMING_SWPRINTFS
@@ -197,7 +197,6 @@ int WINAPI extGetWindowRgnBox(HWND, LPRECT);
 
 BOOL IsChangeDisplaySettingsHotPatched = FALSE;
 BOOL InMainWinCreation = FALSE;
-BOOL MovedInCallback = FALSE;
 HWND CurrentActiveMovieWin = NULL;
 
 extern BOOL bFlippedDC;
@@ -1779,7 +1778,7 @@ BOOL WINAPI extSetWindowPos(HWND hwnd, HWND hWndInsertAfter, int X, int Y, int c
 		return TRUE;
 	}
 
-	if(InMainWinCreation) MovedInCallback = TRUE;
+	if(InMainWinCreation) SetPropA(hwnd, "MovedInCallback", (HANDLE)(0x1000 | (uFlags & (SWP_NOMOVE | SWP_NOSIZE)))); // v2.06.14 Crazyc fix
 
 	// v2.06.09: if isColorEmulatedMode bypass the proxy
 	if(dxw.isColorEmulatedMode){
@@ -2006,7 +2005,7 @@ HDWP WINAPI extDeferWindowPos(HDWP hWinPosInfo, HWND hwnd, HWND hWndInsertAfter,
 		X, Y, cx, cy, 
 		uFlags, ExplainSWPFlags(uFlags));
 
-	if(InMainWinCreation) MovedInCallback = TRUE;
+	if(InMainWinCreation) SetPropA(hwnd, "MovedInCallback", (HANDLE)(0x1000 | (uFlags & (SWP_NOMOVE | SWP_NOSIZE)))); // v2.06.14 Crazyc fix
 
 	// v2.06.09: if isColorEmulatedMode bypass the proxy
 	if(dxw.isColorEmulatedMode){
@@ -3617,7 +3616,6 @@ static HWND WINAPI CreateWindowCommon(
 	// this way, any creation callback routine invoked within the window creation will receive only the original call parameters, while the new scaled
 	// values and adjusted styles will be applied only after the creation.
 
-	MovedInCallback = FALSE;
 	InMainWinCreation++;
 	hwnd= (*pCreateWindow)(origexstyle, lpClassName, lpWindowName, origstyle, origx, origy, origw, origh, hWndParent, hMenu, hInstance, lpParam);
 	InMainWinCreation--;
@@ -3649,8 +3647,25 @@ static HWND WINAPI CreateWindowCommon(
 
 	// assign final position & style
 	// v2.06.11 - unless the window position was fixed in the creation callback. Fixes "Delaware St. John" games.
-	if(!MovedInCallback) dxw.FixWindow(hwnd, dwStyle, dwExStyle, x, y, nWidth, nHeight);
-	MovedInCallback = FALSE;
+	// v2.06.14 - Crazyc fix: test if the creation callback changed size and position separately
+    DWORD MovedInCallback = (DWORD)GetPropA(hwnd, "MovedInCallback");
+    if(MovedInCallback) RemovePropA(hwnd, "MovedInCallback");
+	MovedInCallback = (MovedInCallback & 0x1000) ? MovedInCallback & ~0x1000 : (SWP_NOMOVE | SWP_NOSIZE);
+	if(MovedInCallback){
+		int fix_x = x, fix_y = y, fix_cx = nWidth, fix_cy = nHeight;
+		RECT wrect;
+		GetWindowRect(hwnd, &wrect);
+		MapWindowPoints(HWND_DESKTOP, GetParent(hwnd), (POINT *)&wrect, 2);
+		if(!(MovedInCallback & SWP_NOMOVE)){
+			fix_x = wrect.left;
+			fix_y = wrect.top;
+		}
+		if(!(MovedInCallback & SWP_NOSIZE)){
+			fix_cx = wrect.right - wrect.left;
+			fix_cy = wrect.bottom - wrect.top;
+		}
+	   dxw.FixWindow(hwnd, dwStyle, dwExStyle, fix_x, fix_y, fix_cx, fix_cy);
+	}
 
 	// v2.06.14; commented - the ShowWindow inside a CreateWindow wrapper causes the WM_ACTIVATE message to be sent
 	// to the app when it is not ready to process it causing exceptions and malfunctioning.
@@ -5101,7 +5116,7 @@ BOOL WINAPI extMoveWindow(HWND hwnd, int X, int Y, int nWidth, int nHeight, BOOL
 		if(nHeight == 0) nHeight = 1;
 	}
 
-	if(InMainWinCreation) MovedInCallback = TRUE;
+	 if(InMainWinCreation) SetPropA(hwnd, "MovedInCallback", (HANDLE)0x1000);
 
 #if DXWHIDEWINDOWUPDATES
 	origx = X;

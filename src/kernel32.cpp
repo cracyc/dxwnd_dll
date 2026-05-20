@@ -2528,7 +2528,7 @@ DWORD WINAPI extGetLogicalDrives(void)
 			}
 		}
 	}
-	if (dxw.dwFlags17 & HIDECDROMREAL){ // v2.06.14 added reaad CD exclusion
+	if (dxw.dwFlags17 & HIDECDROMREAL){ // v2.06.14 added real CD exclusion
 		for(int i=0; i<32; i++){
 			DWORD DevBit;
 			UINT VolType;
