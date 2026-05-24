@@ -2980,6 +2980,9 @@ int WINAPI extGetDIBits(HDC hdc, HBITMAP hbmp, UINT uStartScan, UINT cScanLines,
 		return ret;
 	}
 
+	if((lpbmi->bmiHeader.biBitCount <= 8) && !lpbmi->bmiHeader.biClrUsed) // v2.06.14; Crazyc fix
+		lpbmi->bmiHeader.biClrUsed = 1 << lpbmi->bmiHeader.biBitCount;
+
 #ifndef DXW_NOTRACES
 	if(dxw.dwDFlags & DUMPDIBSECTION) DumpDibSection(ApiRef, hdc, lpbmi, uUsage, (LPBYTE)lpvBits);
 	TraceBITMAPINFOHEADER(ApiRef, (BITMAPINFOHEADER *)&(lpbmi->bmiHeader));
