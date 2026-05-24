@@ -2892,7 +2892,6 @@ BOOL WINAPI extGetWindowRect(HWND hwnd, LPRECT lpRect)
 	return ret;
 }
 
-
 int WINAPI extMapWindowPoints(HWND hWndFrom, HWND hWndTo, LPPOINT lpPoints, UINT cPoints)
 {
 	UINT pi;
@@ -2901,7 +2900,9 @@ int WINAPI extMapWindowPoints(HWND hWndFrom, HWND hWndTo, LPPOINT lpPoints, UINT
 	// a rarely used API, but responsible for a painful headache: needs hooking for "Commandos 2", "Alien Nations".
 	// used also in "Full Pipe" activemovie
 	// used also in "NBA Live 99" menu screen	
+	// I was wrong: this is fundamental for a lot of GDI / QT games!!
 
+	//OutTraceGDI("%s: hWndFrom=%#x%s hWndTo=%#x%s cPoints=%d FullScreen=%#x\n", 
 	OutTraceGDI("%s: hWndFrom=%#x%s hWndTo=%#x%s cPoints=%d FullScreen=%#x\n", 
 		ApiRef, hWndFrom, dxw.IsDesktop(hWndFrom)?"(DESKTOP)":"",
 		hWndTo, dxw.IsDesktop(hWndTo)?"(DESKTOP)":"",
@@ -2909,7 +2910,8 @@ int WINAPI extMapWindowPoints(HWND hWndFrom, HWND hWndTo, LPPOINT lpPoints, UINT
 
 #ifndef DXW_NOTRACES
 	if(IsDebugGDI){
-		for(pi=0; pi<cPoints; pi++) OutTrace("> point[%d]=(%d,%d)\n", pi, lpPoints[pi].x, lpPoints[pi].y);
+		OutTrace("< input points:\n");
+		for(pi=0; pi<cPoints; pi++) OutTrace("< point[%d]=(%d,%d)\n", pi, lpPoints[pi].x, lpPoints[pi].y);
 	}
 #endif
 
@@ -2923,28 +2925,29 @@ int WINAPI extMapWindowPoints(HWND hWndFrom, HWND hWndTo, LPPOINT lpPoints, UINT
 		}
 	}
 	
-	ret=(*pMapWindowPoints)(hWndFrom, hWndTo, lpPoints, cPoints);
 	// v2.03.16: now must scale every point (fixes "NBA Live 99")
 	// v2.03.18: in some cases it should not! "New Your Race"...
 	// v2.03.56: scale only on scaled modes
+
 	switch(dxw.GDIEmulationMode){
 		case GDIMODE_SHAREDDC:
 		case GDIMODE_EMULATED:
 		default:
+			ret=(*pMapWindowPoints)(hWndFrom, hWndTo, lpPoints, cPoints);
 			break;
 		case GDIMODE_STRETCHED:
-			for(pi=0; pi<cPoints; pi++){
-				dxw.UnmapClient(&lpPoints[pi]);
-			}			
-#ifndef DXW_NOTRACES
-			if(IsDebugDW){
-				OutTrace("Mapped points: ");
-				for(pi=0; pi<cPoints; pi++) OutTrace("(%d,%d)", lpPoints[pi].x, lpPoints[pi].y);
-				OutTrace("\n");
-			}
-#endif
+			for(pi=0; pi<cPoints; pi++) dxw.MapClient(&lpPoints[pi]);
+			ret=(*pMapWindowPoints)(hWndFrom, hWndTo, lpPoints, cPoints);
+			for(pi=0; pi<cPoints; pi++) dxw.UnmapClient(&lpPoints[pi]);
 			break;
 	}
+
+#ifndef DXW_NOTRACES
+	if(IsDebugGDI){
+		OutTrace("> mapped points:\n");
+		for(pi=0; pi<cPoints; pi++) OutTrace("> point[%d]=(%d,%d)\n", pi, lpPoints[pi].x, lpPoints[pi].y);
+	}
+#endif
 
 	// If the function succeeds, the low-order word of the return value is the number of pixels 
 	// added to the horizontal coordinate of each source point in order to compute the horizontal 
@@ -2953,8 +2956,28 @@ int WINAPI extMapWindowPoints(HWND hWndFrom, HWND hWndTo, LPPOINT lpPoints, UINT
 	// The high-order word is the number of pixels added to the vertical coordinate of each source
 	// point in order to compute the vertical coordinate of each destination point.
 
-	OutTraceGDI("%s: ret=%#x (%d,%d)\n", 
-		ApiRef, ret, (short)((ret&0xFFFF0000)>>16), (short)(ret&0x0000FFFF));
+	// tbd: If hWndFrom or hWndTo (or both) are mirrored windows (that is, have WS_EX_LAYOUTRTL 
+	// extended style) and precisely two points are passed in lpPoints, MapWindowPoints will interpret
+	// those two points as a RECT and possibly automatically swap the left and right fields of that 
+	// rectangle to ensure that left is not greater than right. If any number of points other than 2 
+	// is passed in lpPoints, then MapWindowPoints will correctly map the coordinates of each of those 
+	// points separately, ...
+
+	if(ret) {
+		if(dxw.GDIEmulationMode == GDIMODE_STRETCHED){
+			POINT pRet;
+			pRet.y = (LONG)(signed short int)(((ret&0xFFFF0000)>>16) & 0x0000FFFF);
+			pRet.x = (LONG)(signed short int)(ret&0x0000FFFF);
+			OutTraceGDI("%s: unscaled ret=%#x (%d,%d)\n", ApiRef, ret, pRet.x, pRet.y);
+			dxw.UnmapClient(&pRet);
+			ret = ((pRet.y & 0x0000FFFF)<<16) | (pRet.x & 0x0000FFFF);
+		}
+		OutTraceGDI("%s: ret=%#x (%d,%d)\n", 
+			ApiRef, ret, (signed short int)(ret&0x0000FFFF), (signed short int)((ret&0xFFFF0000)>>16));
+	}
+	else {
+		OutErrorGDI("%s: ret=0 err=%d\n", ApiRef, GetLastError());
+	}
 	return ret;
 }
 
