@@ -552,13 +552,8 @@ public:
     virtual ~dxwWStack();
 
 public:
-	void Put(HWND, WNDPROC, int, int);
 	void PutProc(HWND, WNDPROC);
-	void PutSize(HWND, int, int);
-	BOOL GetSize(HWND, int *, int *);
 	WNDPROC GetProc(HWND);
-	BOOL dxwWStack::Get(int, HWND *);
-
 
 private:
 	wndstack_entry *WhndStack;
@@ -731,6 +726,10 @@ enum {
 #define DXW_HD_PATH 0
 #define DXW_CD_PATH 1
 #define S_INFO_SIZE 512
+
+#define PROP_MOVED	0x00000001
+#define PROP_SIZED	0x00000002
+#define PROP_INIT	0x00000004
 
 char *dxwGetFakeDriverPath(char);
 LPCSTR dxwTranslatePathA(LPCSTR, DWORD *);

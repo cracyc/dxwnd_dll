@@ -637,6 +637,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\gdi32.mapping.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\gdiblt.cpp"
 				>
 			</File>
