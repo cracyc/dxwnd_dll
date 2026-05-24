@@ -2438,6 +2438,7 @@ void dxwCore::FixWindow(HWND hwnd, DWORD dwStyle, DWORD dwExStyle, int x, int y,
 		(*pSetWindowLong)(hwnd, GWL_EXSTYLE, dwExStyle);
 	}
 	(*pMoveWindow)(hwnd, x, y, nWidth, nHeight, FALSE);
+	if(dwStyle & WS_CLIPCHILDREN) (*pRedrawWindow)(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN); // v2.06.14; Crazyc fix
 	if(dwFlags9 & LOCKTOPZORDER) (*pSetWindowPos)(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_SHOWWINDOW|SWP_NOMOVE|SWP_NOSIZE);
 
 	if(dwFlags10 & HIDEWINDOWCHANGES){

@@ -112,6 +112,7 @@ OBJS = \
     $(OUTDIR)\fourcc.obj \
     $(OUTDIR)\fthook.obj \
     $(OUTDIR)\gdi32.obj \
+    $(OUTDIR)\gdi32.mapping.obj \
     $(OUTDIR)\gdiblt.obj \
     $(OUTDIR)\glide.obj \
     $(OUTDIR)\guids.obj \

@@ -1778,7 +1778,14 @@ BOOL WINAPI extSetWindowPos(HWND hwnd, HWND hWndInsertAfter, int X, int Y, int c
 		return TRUE;
 	}
 
-	if(InMainWinCreation) SetPropA(hwnd, "MovedInCallback", (HANDLE)(0x1000 | (uFlags & (SWP_NOMOVE | SWP_NOSIZE)))); // v2.06.14 Crazyc fix
+	//if(InMainWinCreation) SetPropA(hwnd, "MovedInCallback", (HANDLE)(0x1000 | (uFlags & (SWP_NOMOVE | SWP_NOSIZE)))); // v2.06.14 Crazyc fix
+	if(InMainWinCreation) {
+		DWORD MovedInCallback = (DWORD)GetPropA(hwnd, "MovedInCallback");
+		MovedInCallback |= PROP_INIT;
+		if(!(uFlags & SWP_NOMOVE)) MovedInCallback |= PROP_MOVED;
+		if(!(uFlags & SWP_NOSIZE)) MovedInCallback |= PROP_SIZED;
+		SetPropA(hwnd, "MovedInCallback", (HANDLE)MovedInCallback);
+	}
 
 	// v2.06.09: if isColorEmulatedMode bypass the proxy
 	if(dxw.isColorEmulatedMode){
@@ -2005,7 +2012,14 @@ HDWP WINAPI extDeferWindowPos(HDWP hWinPosInfo, HWND hwnd, HWND hWndInsertAfter,
 		X, Y, cx, cy, 
 		uFlags, ExplainSWPFlags(uFlags));
 
-	if(InMainWinCreation) SetPropA(hwnd, "MovedInCallback", (HANDLE)(0x1000 | (uFlags & (SWP_NOMOVE | SWP_NOSIZE)))); // v2.06.14 Crazyc fix
+	//if(InMainWinCreation) SetPropA(hwnd, "MovedInCallback", (HANDLE)(0x1000 | (uFlags & (SWP_NOMOVE | SWP_NOSIZE)))); // v2.06.14 Crazyc fix
+	if(InMainWinCreation) {
+		DWORD MovedInCallback = (DWORD)GetPropA(hwnd, "MovedInCallback");
+		MovedInCallback |= PROP_INIT;
+		if(!(uFlags & SWP_NOMOVE)) MovedInCallback |= PROP_MOVED;
+		if(!(uFlags & SWP_NOSIZE)) MovedInCallback |= PROP_SIZED;
+		SetPropA(hwnd, "MovedInCallback", (HANDLE)MovedInCallback);
+	}
 
 	// v2.06.09: if isColorEmulatedMode bypass the proxy
 	if(dxw.isColorEmulatedMode){
@@ -2812,7 +2826,7 @@ BOOL WINAPI extGetClientRect(HWND hwnd, LPRECT lpRect)
 		OutDebugDW("%s: desktop rect=(%d,%d)-(%d,%d)\n", ApiRef, lpRect->left, lpRect->top, lpRect->right, lpRect->bottom);
 	}
 	else 
-	if (dxw.IsFullScreen()){
+	if (dxw.IsFullScreen() && !InMainWinCreation){
 		*lpRect=dxw.GetClientRect(*lpRect);
 		OutDebugDW("%s: fixed rect=(%d,%d)-(%d,%d)\n", ApiRef, lpRect->left, lpRect->top, lpRect->right, lpRect->bottom);
 	}
@@ -3649,23 +3663,30 @@ static HWND WINAPI CreateWindowCommon(
 	// v2.06.11 - unless the window position was fixed in the creation callback. Fixes "Delaware St. John" games.
 	// v2.06.14 - Crazyc fix: test if the creation callback changed size and position separately
     DWORD MovedInCallback = (DWORD)GetPropA(hwnd, "MovedInCallback");
-    if(MovedInCallback) RemovePropA(hwnd, "MovedInCallback");
-	MovedInCallback = (MovedInCallback & 0x1000) ? MovedInCallback & ~0x1000 : (SWP_NOMOVE | SWP_NOSIZE);
+	//MovedInCallback = (MovedInCallback & 0x1000) ? MovedInCallback & ~0x1000 : (SWP_NOMOVE | SWP_NOSIZE);
+	OutDebugGDI("%s: hwnd=%#x MovedInCallback=%#x(%s%s%s)\n", ApiRef, hwnd, MovedInCallback,
+		(MovedInCallback & PROP_INIT) ? "INIT " : "",
+		(MovedInCallback & PROP_MOVED) ? "MOVED " : "",
+		(MovedInCallback & PROP_SIZED) ? "SIZED " : ""
+		);
 	if(MovedInCallback){
+		RemovePropA(hwnd, "MovedInCallback");
 		int fix_x = x, fix_y = y, fix_cx = nWidth, fix_cy = nHeight;
 		RECT wrect;
-		GetWindowRect(hwnd, &wrect);
-		MapWindowPoints(HWND_DESKTOP, GetParent(hwnd), (POINT *)&wrect, 2);
-		if(!(MovedInCallback & SWP_NOMOVE)){
+		(*pGetWindowRect)(hwnd, &wrect);
+		(*pMapWindowPoints)(HWND_DESKTOP, GetParent(hwnd), (POINT *)&wrect, 2);
+		if(MovedInCallback & PROP_MOVED){
 			fix_x = wrect.left;
 			fix_y = wrect.top;
 		}
-		if(!(MovedInCallback & SWP_NOSIZE)){
+		if(MovedInCallback & PROP_SIZED){
 			fix_cx = wrect.right - wrect.left;
 			fix_cy = wrect.bottom - wrect.top;
 		}
-	   dxw.FixWindow(hwnd, dwStyle, dwExStyle, fix_x, fix_y, fix_cx, fix_cy);
+		dxw.FixWindow(hwnd, dwStyle, dwExStyle, fix_x, fix_y, fix_cx, fix_cy);
 	}
+	else
+		dxw.FixWindow(hwnd, dwStyle, dwExStyle, x, y, nWidth, nHeight);
 
 	// v2.06.14; commented - the ShowWindow inside a CreateWindow wrapper causes the WM_ACTIVATE message to be sent
 	// to the app when it is not ready to process it causing exceptions and malfunctioning.
@@ -5116,7 +5137,9 @@ BOOL WINAPI extMoveWindow(HWND hwnd, int X, int Y, int nWidth, int nHeight, BOOL
 		if(nHeight == 0) nHeight = 1;
 	}
 
-	 if(InMainWinCreation) SetPropA(hwnd, "MovedInCallback", (HANDLE)0x1000);
+	if(InMainWinCreation) {
+		SetPropA(hwnd, "MovedInCallback", (HANDLE)(PROP_INIT | PROP_SIZED | PROP_MOVED));
+	}
 
 #if DXWHIDEWINDOWUPDATES
 	origx = X;
@@ -6446,7 +6469,7 @@ HWND WINAPI extWindowFromPoint(POINT Point)
 	ApiName("WindowFromPoint");
 
 	OutTraceGDI("%s: point=(%d,%d)\n", ApiRef, Point.x, Point.y); 
-	if(dxw.IsFullScreen()){
+	if(dxw.Windowize){
 		dxw.MapWindow(&Point); // v2.03.69 fix
 		OutTraceGDI("%s: FIXED point=(%d,%d)\n", ApiRef, Point.x, Point.y);
 	}
@@ -6461,7 +6484,7 @@ HWND WINAPI extChildWindowFromPoint(HWND hWndParent, POINT Point)
 	ApiName("ChildWindowFromPoint");
 
 	OutTraceGDI("%s: hWndParent=%#x point=(%d,%d)\n", ApiRef, hWndParent, Point.x, Point.y); 
-	if(dxw.IsDesktop(hWndParent) && dxw.IsFullScreen() && dxw.Windowize){
+	if(dxw.Windowize){
 		dxw.MapClient(&Point);
 		OutTraceGDI("%s: FIXED point=(%d,%d)\n", ApiRef, Point.x, Point.y);
 	}
@@ -6475,9 +6498,13 @@ HWND WINAPI extChildWindowFromPointEx(HWND hWndParent, POINT Point, UINT uFlags)
 	HWND ret;
 	ApiName("ChildWindowFromPointEx");
 
-	OutTraceGDI("%s: hWndParent=%#x point=(%d,%d) flags=%#x\n", ApiRef, hWndParent, Point.x, Point.y, uFlags); 
-	if(dxw.IsDesktop(hWndParent) && dxw.IsFullScreen() && dxw.Windowize){
-		dxw.UnmapClient(&Point);
+	OutTraceGDI("%s: hWndParent=%#x point=(%d,%d) flags=%#x(%s%s%s)\n", ApiRef, hWndParent, Point.x, Point.y, uFlags,
+		uFlags & CWP_SKIPINVISIBLE ? "SKIPINVISIBLE " : "",
+		uFlags & CWP_SKIPDISABLED ? "SKIPDISABLED " : "",
+		uFlags & CWP_SKIPTRANSPARENT ? "SKIPTRANSPARENT " : "" );
+
+	if(dxw.Windowize){
+		dxw.MapClient(&Point);
 		OutTraceGDI("%s: FIXED point=(%d,%d)\n", ApiRef, Point.x, Point.y);
 	}
 	ret = (*pChildWindowFromPointEx)(hWndParent, Point, uFlags);
