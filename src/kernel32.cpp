@@ -793,8 +793,7 @@ void HookKernelModule(HMODULE module, char *libname)
 #else
 	if( (dxw.dwFlags6 & LEGACYALLOC) ||
 		(dxw.dwFlags15 & EMULATEWIN95)) HookLibraryEx(module, AllocHooks, libname);
-	if( (dxw.dwFlags8 & VIRTUALHEAP) || 
-		(dxw.dwFlags14 & SAFEHEAP)) HookLibraryEx(module, HeapHooks, libname);
+	if(dxw.dwFlags14 & SAFEHEAP) HookLibraryEx(module, HeapHooks, libname);
 #endif // TRACEHEAP
 	if(dxw.dwFlags4 & IGNOREDEBOUTPUT) HookLibraryEx(module, OutDebHooks, libname);
 	if(dxw.dwFlags11 & (MUTEX4CRITSECTION|DELAYCRITSECTION)) HookLibraryEx(module, CritRegionHooks, libname);
@@ -889,7 +888,7 @@ FARPROC Remap_kernel32_ProcAddress(LPCSTR proc, HMODULE hModule)
 		(dxw.dwFlags15 & EMULATEWIN95))
 		if (addr=RemapLibraryEx(proc, hModule, AllocHooks)) return addr;
 
-	if((dxw.dwFlags8 & VIRTUALHEAP) || (dxw.dwFlags14 & SAFEHEAP))
+	if(dxw.dwFlags14 & SAFEHEAP)
 		if (addr=RemapLibraryEx(proc, hModule, HeapHooks)) return addr;
 #endif
 
@@ -5174,6 +5173,7 @@ HGLOBAL WINAPI extGlobalFree(HGLOBAL hMem)
 		OutErrorSYS("%s: EXCEPTION hmem=%#x\n", ApiRef, hMem);
 		res = NULL; // fake a success
 	}
+	bRecursed = FALSE; // v2.06.14: crazyc fix
 	if(res) OutErrorSYS("%s: ret=%#x err=%d\n", ApiRef, res, GetLastError());
 	return res;
 }

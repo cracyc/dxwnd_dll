@@ -2550,7 +2550,7 @@ BOOL WINAPI extMoveToEx(HDC hdc, int X, int Y, LPPOINT lpPoint)
 {
 	BOOL ret;
 	ApiName("MoveToEx");
-	OutTraceGDI("%s: hdc=%#x pt=(%d,%d)\n", ApiRef, hdc, X, Y);
+	OutTraceGDI("%s: hdc=%#x pt=(%d,%d) lppoint=%#x\n", ApiRef, hdc, X, Y, lpPoint);
 	if (dxw.IsToRemap(hdc)){
 		switch(dxw.GDIEmulationMode){
 			case GDIMODE_SHAREDDC:
@@ -2565,8 +2565,19 @@ BOOL WINAPI extMoveToEx(HDC hdc, int X, int Y, LPPOINT lpPoint)
 				break;
 		}
 	}
-	ret=(*pMoveToEx)(hdc, X, Y, lpPoint);
-	_if(!ret)OutErrorGDI("%s: ERROR err=%d\n", ApiRef, GetLastError()); 
+	ret=(*pMoveToEx)(hdc, X, Y, lpPoint); // v2.06.14
+	if (ret) {
+		if (lpPoint) {
+			OutTraceGDI("%s: hdc=%#x lppt=(%d,%d)\n", ApiRef, hdc, lpPoint->x, lpPoint->y);
+			if (dxw.IsToRemap(hdc) && (dxw.GDIEmulationMode == GDIMODE_STRETCHED)){
+				dxw.UnmapClient(lpPoint);
+				OutTraceGDI("%s: hdc=%#x fixed lppt=(%d,%d)\n", ApiRef, hdc, lpPoint->x, lpPoint->y);
+			}
+		}
+	}
+	else {
+		OutErrorGDI("%s: ERROR err=%d\n", ApiRef, GetLastError()); 
+	}
 	return ret;
 }
 

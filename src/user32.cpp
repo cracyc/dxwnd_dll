@@ -1764,9 +1764,7 @@ BOOL WINAPI extSetWindowPos(HWND hwnd, HWND hWndInsertAfter, int X, int Y, int c
 	BOOL bMustFixPos = FALSE;
 	DWORD dwStyle, dwExStyle;
 	HWND hParent;
-#ifdef DXWHIDEWINDOWUPDATES
 	int origx, origy, origw, origh;
-#endif
 	OutTraceGDI("%s: hwnd=%#x%s insertafter=%#x pos=(%d,%d) dim=(%d,%d) Flags=%#x(%s)\n", 
 		ApiRef, hwnd, dxw.IsFullScreen()?"(FULLSCREEN)":"", 
 		hWndInsertAfter, 
@@ -1797,12 +1795,10 @@ BOOL WINAPI extSetWindowPos(HWND hwnd, HWND hWndInsertAfter, int X, int Y, int c
 		return res;
 	}
 
-#ifdef DXWHIDEWINDOWUPDATES
 	origx = X;
 	origy = Y;
 	origw = cx;
 	origh = cy;
-#endif
 
 	if(dxw.dwFlags13 & LOCKALLWINDOWS) {
 		DWORD dwStyle = (*pGetWindowLong)(hwnd, GWL_STYLE);
@@ -1886,7 +1882,6 @@ BOOL WINAPI extSetWindowPos(HWND hwnd, HWND hWndInsertAfter, int X, int Y, int c
 				}
 			}
 
-#ifdef DXWHIDEWINDOWUPDATES
 			if(dxw.dwFlags10 & HIDEWINDOWCHANGES){
 				DWORD lpWinCB;
 				res=(*pSetWindowPos)(hwnd, hWndInsertAfter, origx, origy, origw, origh, uFlags);
@@ -1898,9 +1893,6 @@ BOOL WINAPI extSetWindowPos(HWND hwnd, HWND hWndInsertAfter, int X, int Y, int c
 			else {
 				res=(*pSetWindowPos)(hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
 			}
-#else
-			res=(*pSetWindowPos)(hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
-#endif
 #ifndef DXW_NOTRACES
 			if(!res)OutErrorGDI("%s: ERROR err=%d @%d\n", ApiRef, GetLastError(), __LINE__);
 #endif // DXW_NOTRACES
@@ -1965,7 +1957,6 @@ BOOL WINAPI extSetWindowPos(HWND hwnd, HWND hWndInsertAfter, int X, int Y, int c
 		OutTraceGDI("%s: main form hwnd=%#x fixed size=(%d,%d)\n", ApiRef, hwnd, cx, cy);
 	}
 
-#ifdef DXWHIDEWINDOWUPDATES
 	if(dxw.dwFlags10 & HIDEWINDOWCHANGES){
 		DWORD lpWinCB;
 		res=(*pSetWindowPos)(hwnd, hWndInsertAfter, origx, origy, origw, origh, uFlags);
@@ -1977,9 +1968,6 @@ BOOL WINAPI extSetWindowPos(HWND hwnd, HWND hWndInsertAfter, int X, int Y, int c
 	else {
 		res=(*pSetWindowPos)(hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
 	}
-#else
-	res=(*pSetWindowPos)(hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
-#endif
 #ifndef DXW_NOTRACES
 	if(!res)OutErrorGDI("%s: ERROR err=%d @%d\n", ApiRef, GetLastError(), __LINE__);
 #endif // DXW_NOTRACES
@@ -2031,12 +2019,10 @@ HDWP WINAPI extDeferWindowPos(HDWP hWinPosInfo, HWND hwnd, HWND hWndInsertAfter,
 		return res;
 	}
 
-#ifdef DXWHIDEWINDOWUPDATES
-	origx = X;
-	origy = Y;
-	origw = cx;
-	origh = cy;
-#endif
+	int origx = X;
+	int origy = Y;
+	int origw = cx;
+	int origh = cy;
 
 	if(dxw.dwFlags13 & LOCKALLWINDOWS) {
 		DWORD dwStyle = (*pGetWindowLong)(hwnd, GWL_STYLE);
@@ -2120,21 +2106,17 @@ HDWP WINAPI extDeferWindowPos(HDWP hWinPosInfo, HWND hwnd, HWND hWndInsertAfter,
 				}
 			}
 
-#ifdef DXWHIDEWINDOWUPDATES
 			if(dxw.dwFlags10 & HIDEWINDOWCHANGES){
 				DWORD lpWinCB;
-				res=(*pGDIDeferWindowPos)(hwnd, hWndInsertAfter, origx, origy, origw, origh, uFlags);
+				res=(*pGDIDeferWindowPos)(hWinPosInfo, hwnd, hWndInsertAfter, origx, origy, origw, origh, uFlags);
 				lpWinCB = (*pGetWindowLong)(hwnd, GWL_WNDPROC);
 				(*pSetWindowLong)(hwnd, GWL_WNDPROC, NULL);
-				res=(*pGDIDeferWindowPos)(hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
+				res=(*pGDIDeferWindowPos)(hWinPosInfo, hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
 				(*pSetWindowLong)(hwnd, GWL_WNDPROC, lpWinCB);
 			}
 			else {
-				res=(*pDeferWindowPos)(hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
+				res=(*pGDIDeferWindowPos)(hWinPosInfo, hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
 			}
-#else
-			res=(*pGDIDeferWindowPos)(hWinPosInfo, hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
-#endif
 #ifndef DXW_NOTRACES
 			if(!res)OutErrorGDI("%s: ERROR err=%d @%d\n", ApiRef, GetLastError(), __LINE__);
 #endif // DXW_NOTRACES
@@ -2199,21 +2181,17 @@ HDWP WINAPI extDeferWindowPos(HDWP hWinPosInfo, HWND hwnd, HWND hWndInsertAfter,
 		OutTraceGDI("%s: main form hwnd=%#x fixed size=(%d,%d)\n", ApiRef, hwnd, cx, cy);
 	}
 
-#ifdef DXWHIDEWINDOWUPDATES
 	if(dxw.dwFlags10 & HIDEWINDOWCHANGES){
 		DWORD lpWinCB;
-		res=(*pDeferWindowPos)(hwnd, hWndInsertAfter, origx, origy, origw, origh, uFlags);
+		res=(*pGDIDeferWindowPos)(hWinPosInfo, hwnd, hWndInsertAfter, origx, origy, origw, origh, uFlags);
 		lpWinCB = (*pGetWindowLong)(hwnd, GWL_WNDPROC);
 		(*pSetWindowLong)(hwnd, GWL_WNDPROC, NULL);
-		res=(*pDeferWindowPos)(hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
+		res=(*pGDIDeferWindowPos)(hWinPosInfo, hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
 		(*pSetWindowLong)(hwnd, GWL_WNDPROC, lpWinCB);
 	}
 	else {
-		res=(*pDeferWindowPos)(hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
+		res=(*pGDIDeferWindowPos)(hWinPosInfo, hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
 	}
-#else
-	res=(*pGDIDeferWindowPos)(hWinPosInfo, hwnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
-#endif
 #ifndef DXW_NOTRACES
 	if(!res)OutErrorGDI("%s: ERROR err=%d @%d\n", ApiRef, GetLastError(), __LINE__);
 #endif // DXW_NOTRACES
@@ -4943,12 +4921,15 @@ BOOL WINAPI extEndPaint(HWND hwnd, const PAINTSTRUCT *lpPaint)
 			break;
 		case GDIMODE_STRETCHED:
 			if(lpPaint) {
-				Paint = *lpPaint;
+				memcpy(&Paint, lpPaint, sizeof(PAINTSTRUCT));
 				dxw.MapClient((LPRECT)&(Paint.rcPaint));
-				lpPaint = &Paint;
-				//dxw.MapClient((LPRECT)&(lpPaint->rcPaint));
+				ret=(*pEndPaint)(hwnd, &Paint);
+				dxw.UnmapClient((LPRECT)&(Paint.rcPaint));
+				memcpy((VOID *)lpPaint, &Paint, sizeof(PAINTSTRUCT));
 			}
-			ret=(*pEndPaint)(hwnd, lpPaint);
+			else {
+				ret=(*pEndPaint)(hwnd, lpPaint);
+			}
 			break;
 		default:
 			ret=(*pEndPaint)(hwnd, lpPaint);
@@ -5147,9 +5128,7 @@ BOOL WINAPI extMoveWindow(HWND hwnd, int X, int Y, int nWidth, int nHeight, BOOL
 	ApiName("MoveWindow");
 	BOOL ret;
 	DWORD dwStyle, dwExStyle;
-#ifdef DXWHIDEWINDOWUPDATES
 	int origx, origy, origw, origh;
-#endif
 	OutTraceGDI("%s: hwnd=%#x xy=(%d,%d) size=(%d,%d) repaint=%#x\n",
 		ApiRef, hwnd, X, Y, nWidth, nHeight, bRepaint);
 	OutDebugDW("> fullscreen=%d InMainWinCreation=%d\n", dxw.IsFullScreen(), InMainWinCreation);
@@ -5164,12 +5143,11 @@ BOOL WINAPI extMoveWindow(HWND hwnd, int X, int Y, int nWidth, int nHeight, BOOL
 		SetPropA(hwnd, "MovedInCallback", (HANDLE)(PROP_INIT | PROP_SIZED | PROP_MOVED));
 	}
 
-#if DXWHIDEWINDOWUPDATES
 	origx = X;
 	origy = Y;
 	origw = nWidth;
 	origh = nHeight;
-#endif
+
 	if(dxw.dwFlags13 & LOCKALLWINDOWS) {
 		DWORD dwStyle = (*pGetWindowLong)(hwnd, GWL_STYLE);
 		if(!(dwStyle & WS_CHILD)) return (*pMoveWindow)(hwnd, dxw.iPos0X, dxw.iPos0Y, dxw.iSiz0X, dxw.iSiz0Y, bRepaint);
@@ -5253,7 +5231,6 @@ BOOL WINAPI extMoveWindow(HWND hwnd, int X, int Y, int nWidth, int nHeight, BOOL
 		}
 	}
 
-#ifdef DXWHIDEWINDOWUPDATES
 	if(dxw.dwFlags10 & HIDEWINDOWCHANGES){
 		DWORD lpWinCB;
 		ret=(*pMoveWindow)(hwnd, origx, origy, origw, origh, FALSE);
@@ -5265,9 +5242,6 @@ BOOL WINAPI extMoveWindow(HWND hwnd, int X, int Y, int nWidth, int nHeight, BOOL
 	else {
 		ret=(*pMoveWindow)(hwnd, X, Y, nWidth, nHeight, bRepaint);
 	}
-#else
-	ret=(*pMoveWindow)(hwnd, X, Y, nWidth, nHeight, bRepaint);
-#endif
 #ifndef DXW_NOTRACES
 	if(!ret) OutErrorGDI("%s: ERROR err=%d @%d\n", ApiRef, GetLastError(), __LINE__);
 #endif // DXW_NOTRACES
