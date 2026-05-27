@@ -56,9 +56,6 @@ static LPVOID lpLast   = (LPVOID)0x00000000;
 static DWORD iProg = 1;
 static BOOL bRecursed = FALSE;
 
-#define isVirtualHeap(hHeap) (dxw.dwFlags8 & VIRTUALHEAP) && ((DWORD)hHeap >= 0xDEADBEEF) && ((DWORD)hHeap <= 0xDEADBEEF + iProg)
-#define isVirtualAddr(lpMem) (dxw.dwFlags8 & VIRTUALHEAP) && (lpMem >= VHeapMin) && (lpMem <= VHeapMax)
-
 HANDLE WINAPI extGetProcessHeap(void)
 {
 	HANDLE ret;
@@ -66,14 +63,8 @@ HANDLE WINAPI extGetProcessHeap(void)
 
 	OutDebugSYS("%s\n", ApiRef);
 
-	if(dxw.dwFlags11 & VIRTUALPROCHEAP) {
-		ret = (HANDLE)0xDEADBEEF;
-		OutDebugSYS("%s: ret=%#x(virtual)\n", ApiRef, ret);
-	}
-	else {
-		ret = (*pGetProcessHeap)();
-		OutDebugSYS("%s: ret=%#x\n", ApiRef, ret);
-	}
+	ret = (*pGetProcessHeap)();
+	OutDebugSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
 
@@ -94,12 +85,6 @@ DWORD WINAPI extGetProcessHeaps(DWORD NumberOfHeaps, PHANDLE ProcessHeaps)
 		for(int i=0; i<n; i++){
 			OutDebugSYS("%s: heap[%d]=%#x\n", ApiRef, i, ProcessHeaps[i]);
 		}
-	}
-
-	if((dxw.dwFlags11 & VIRTUALPROCHEAP) && ret && (NumberOfHeaps > 0)){
-		OutTraceDW("%s: replace process heap %#x->%%x\n", 
-			ApiRef, ProcessHeaps[0], 0xDEADBEEF);
-		ProcessHeaps[0] = (HANDLE)0xDEADBEEF;
 	}
 
 	return ret;
@@ -137,26 +122,9 @@ LPVOID WINAPI extHeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
 		return ret;
 	}
 
-	//if((dxw.dwFlags8 & VIRTUALHEAP) && ((DWORD)hHeap >= (DWORD)0xDEADBEEF) && ((DWORD)hHeap <= (DWORD)0xDEADBEEF + iProg)){
-	if(isVirtualHeap(hHeap)){
-		// v2.05.76: recursion fix. The alloc() call can call a HeapAlloc
-		ret = malloc(dwBytes);
-		lpLast = 0;
-		if(ret){
-			if(ret > VHeapMax) VHeapMax = ret;
-			if(ret < VHeapMin) VHeapMin = ret;
-		}
-		if(ret) {
-			OutDebugSYS("%s: (virtual) ret=%#x\n", ApiRef, ret);
-		} 
-		else {
-			OutErrorSYS("%s: (virtual) ret=0 err=%d\n", ApiRef, GetLastError());
-		}
-	}
-	else {
-		ret = (*pHeapAlloc)(hHeap, dwFlags, dwBytes);
-		OutDebugSYS("%s: ret=%#x\n", ApiRef, ret);
-	}
+	ret = (*pHeapAlloc)(hHeap, dwFlags, dwBytes);
+	OutDebugSYS("%s: ret=%#x\n", ApiRef, ret);
+
 	if(ret && (dxw.dwFlags9 & NOBAADFOOD)) memset(ret, 0, dwBytes);
 	bRecursed = FALSE;
 	return ret;
@@ -248,21 +216,8 @@ LPVOID WINAPI extHeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T d
 		return ret;
 	}
 
-	//if((dxw.dwFlags8 & VIRTUALHEAP) && (lpMem >= VHeapMin) && (lpMem <= VHeapMax)){
-	if(isVirtualAddr(lpMem)){
-		// v2.05.76: recursion fix. The realloc() call can call a HeapReAlloc
-		ret = realloc(lpMem, dwBytes);
-		lpLast = 0;
-		if(ret){
-			if(ret > VHeapMax) VHeapMax = ret;
-			if(ret < VHeapMin) VHeapMin = ret;
-		}
-		OutDebugSYS("%s: (virtual) ret=%#x\n", ApiRef, ret);
-	}
-	else {
-		ret = (*pHeapReAlloc)(hHeap, dwFlags, lpMem, dwBytes);
-		OutDebugSYS("%s: ret=%#x\n", ApiRef, ret);
-	}
+	ret = (*pHeapReAlloc)(hHeap, dwFlags, lpMem, dwBytes);
+	OutDebugSYS("%s: ret=%#x\n", ApiRef, ret);
 	bRecursed = FALSE;
 	return ret;
 }
@@ -372,18 +327,7 @@ BOOL WINAPI extHeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 
 	char *sVirtual = "";
 	__try { // v2.05.06: quick & dirty fix for HeapFree exceptions
-		if(isVirtualAddr(lpMem)){
-			sVirtual = "(virtual) ";
-			// v2.05.76: recursion fix. The free() call can hide a HeapFree
-			//bRecursed = TRUE;
-			free(lpMem);
-			//bRecursed = FALSE;
-			lpLast = lpMem;
-			ret = TRUE;
-		}
-		else {
-			ret = (*pHeapFree)(hHeap, dwFlags, lpMem);
-		}
+		ret = (*pHeapFree)(hHeap, dwFlags, lpMem);
 	} __except(EXCEPTION_EXECUTE_HANDLER){
 		OutErrorSYS("%s: %sexception\n", ApiRef, sVirtual);
 		ret = TRUE;
@@ -475,14 +419,8 @@ BOOL WINAPI extHeapValidate(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 		return TRUE;
 	}	
 
-	if(isVirtualAddr(lpMem)){
-		ret = TRUE;
-		OutDebugSYS("%s: (virtual) ret=%#x\n", ApiRef, ret);
-	}
-	else {
-		ret = (*pHeapValidate)(hHeap, dwFlags, lpMem);
-		OutDebugSYS("%s: ret=%#x\n", ApiRef, ret);
-	}
+	ret = (*pHeapValidate)(hHeap, dwFlags, lpMem);
+	OutDebugSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
 
@@ -496,25 +434,21 @@ SIZE_T WINAPI extHeapCompact(HANDLE hHeap, DWORD dwFlags)
 	if(HEAPSERIALIZE) dwFlags &= ~HEAP_NO_SERIALIZE;
 
 	char *label = "";
-	if(isVirtualHeap(hHeap)){
-		ret = 100000; // just a number .... to be fixed !!!
-		label="(virtual) ";
-	}
-	else {
-		ret = (*pHeapCompact)(hHeap, dwFlags);
 
-		// decrement space for safe data
-		if(dxw.dwFlags14 & SAFEHEAP) {
-			label="(safe) ";
-			ret = (ret > 8) ? ret - 8 : 0;
-		}
-		// decrement space for additional space
-		if(dxw.dwFlags14 & HEAPPADALLOCATION) {
-			ret = (ret > HEAPPADSIZE) ? ret - HEAPPADSIZE : 0;
-		}
+	ret = (*pHeapCompact)(hHeap, dwFlags);
 
-		OutDebugSYS("%s: %sret=%d\n", ApiRef, label, ret);
+	// decrement space for safe data
+	if(dxw.dwFlags14 & SAFEHEAP) {
+		label="(safe) ";
+		ret = (ret > 8) ? ret - 8 : 0;
 	}
+	// decrement space for additional space
+	if(dxw.dwFlags14 & HEAPPADALLOCATION) {
+		ret = (ret > HEAPPADSIZE) ? ret - HEAPPADSIZE : 0;
+	}
+
+	OutDebugSYS("%s: %sret=%d\n", ApiRef, label, ret);
+
 	return ret;
 }
 
@@ -525,14 +459,8 @@ HANDLE WINAPI extHeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaxi
 
 	OutDebugSYS("%s: flags=%#x size(init-max)=(%d-%d)\n", ApiRef, flOptions, dwInitialSize, dwMaximumSize);
 
-	if(dxw.dwFlags8 & VIRTUALHEAP){
-		ret = (HANDLE)(0xDEADBEEF + iProg++);
-		OutDebugSYS("%s: (virtual) ret=%X\n", ApiRef, ret);
-	}
-	else {
-		ret = (*pHeapCreate)(flOptions, dwInitialSize, dwMaximumSize);
-		OutDebugSYS("%s: ret=%X\n", ApiRef, ret);
-	}
+	ret = (*pHeapCreate)(flOptions, dwInitialSize, dwMaximumSize);
+	OutDebugSYS("%s: ret=%X\n", ApiRef, ret);
 	return ret;
 }
 
@@ -554,14 +482,11 @@ BOOL WINAPI extHeapDestroy(HANDLE hHeap)
 		}
 	}
 
-	if(isVirtualHeap(hHeap))
-		ret = TRUE;
-	else {
-		ret = (*pHeapDestroy)(hHeap);
+	ret = (*pHeapDestroy)(hHeap);
 #ifdef ASSERTDIALOGS
-		popHeap(hHeap);
+	popHeap(hHeap);
 #endif // ASSERTDIALOGS
-	}
+
 	OutDebugSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
@@ -594,17 +519,7 @@ SIZE_T WINAPI extHeapSize(HANDLE hHeap, DWORD dwFlags, LPCVOID lpMem)
 		return ret;
 	}
 
-	if(isVirtualHeap(hHeap)){
-		// malloc-ed areas can't have an easily measured size, try returning
-		// the size of default process heap.
-		// no good for "Crime Cities" - maybe it expects a growing size?
-		//ret = (*pHeapSize)((*pGetProcessHeap)(), dwFlags, lpMem);
-		OutErrorSYS("%s: UNIMPLEMENTED\n", ApiRef);
-		ret = 400000;
-	}
-	else {
-		ret = (*pHeapSize)(hHeap, dwFlags, lpMem);
-	}
+	ret = (*pHeapSize)(hHeap, dwFlags, lpMem);
 	OutDebugSYS("%s: ret(size)=%d\n", ApiRef, ret);
 	return ret;
 }
@@ -613,15 +528,8 @@ BOOL WINAPI extHeapLock(HANDLE hHeap)
 {
 	BOOL ret;
 	ApiName("HeapLock");
-
 	OutTraceSYS("%s: heap=%#x\n", ApiRef, hHeap);
-	if(isVirtualHeap(hHeap)){
-		OutErrorSYS("%s: UNIMPLEMENTED\n", ApiRef);
-		ret = TRUE;
-	}
-	else {
-		ret = (*pHeapLock)(hHeap);
-	}
+	ret = (*pHeapLock)(hHeap);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
@@ -632,13 +540,7 @@ BOOL WINAPI extHeapUnlock(HANDLE hHeap)
 	ApiName("HeapUnlock");
 
 	OutTraceSYS("%s: heap=%#x\n", ApiRef, hHeap);
-	if(isVirtualHeap(hHeap)){
-		OutErrorSYS("%s: UNIMPLEMENTED\n", ApiRef);
-		ret = TRUE;
-	}
-	else {
-		ret = (*pHeapUnlock)(hHeap);
-	}
+	ret = (*pHeapUnlock)(hHeap);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
@@ -649,13 +551,7 @@ BOOL WINAPI extHeapQueryInformation(HANDLE hHeap, HEAP_INFORMATION_CLASS HeapInf
 	ApiName("HeapQueryInformation");
 
 	OutTraceSYS("%s: heap=%#x\n", ApiRef, hHeap);
-	if(isVirtualHeap(hHeap)){
-		OutErrorSYS("%s: UNIMPLEMENTED\n", ApiRef);
-		ret = TRUE;
-	}
-	else {
-		ret = (*pHeapQueryInformation)(hHeap, HeapInformationClass, HeapInformation, HeapInformationLength, ReturnLength);
-	}
+	ret = (*pHeapQueryInformation)(hHeap, HeapInformationClass, HeapInformation, HeapInformationLength, ReturnLength);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
@@ -666,13 +562,7 @@ BOOL WINAPI extHeapSetInformation(HANDLE hHeap, HEAP_INFORMATION_CLASS HeapInfor
 	ApiName("HeapSetInformation");
 
 	OutTraceSYS("%s: heap=%#x\n", ApiRef, hHeap);
-	if(isVirtualHeap(hHeap)){
-		OutErrorSYS("%s: UNIMPLEMENTED\n", ApiRef);
-		ret = TRUE;
-	}
-	else {
-		ret = (*pHeapSetInformation)(hHeap, HeapInformationClass, HeapInformation, HeapInformationLength);
-	}
+	ret = (*pHeapSetInformation)(hHeap, HeapInformationClass, HeapInformation, HeapInformationLength);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
@@ -704,14 +594,8 @@ BOOL WINAPI extHeapWalk(HANDLE hHeap, LPPROCESS_HEAP_ENTRY lpEntry)
 	}
 #endif // DXW_NOTRACES
 
-	if(isVirtualHeap(hHeap)){
-		OutErrorSYS("%s: UNIMPLEMENTED\n", ApiRef);
-		ret = FALSE;
-	}
-	else {
-		//if(dxw.dwFlags14 & SAFEHEAP) MessageBox(NULL, "HeapWalk", "DxWnd", 0);
-		ret = (*pHeapWalk)(hHeap, lpEntry);
-	}
+	//if(dxw.dwFlags14 & SAFEHEAP) MessageBox(NULL, "HeapWalk", "DxWnd", 0);
+	ret = (*pHeapWalk)(hHeap, lpEntry);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }

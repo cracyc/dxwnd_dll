@@ -661,7 +661,7 @@ void dxwCore::InitTarget(TARGETMAP *target)
 		}
 	}
 
-	if((dwFlags8 & VIRTUALHEAP) || (dxw.dwFlags14 & SAFEHEAP)){
+	if(dxw.dwFlags14 & SAFEHEAP){
 		dxw.nHeaps = GetProcessHeaps(0, NULL);
 		if(dxw.nHeaps != 0){
 			dxw.pHeaps = (PHANDLE)malloc(dxw.nHeaps * sizeof(HANDLE));
