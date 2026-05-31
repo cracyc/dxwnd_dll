@@ -239,8 +239,8 @@ void CTabProgram::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CTabProgram, CDialog)
 	//{{AFX_MSG_MAP(CTabProgram)
 	// NOTE: the ClassWizard will add message map macros here
-	ON_BN_CLICKED(IDC_OPEN, OnOpen)
-	ON_BN_CLICKED(IDC_OPENLAUNCH, OnOpenLaunch)
+	ON_BN_CLICKED(IDC_OPEN, &OnOpen)
+	ON_BN_CLICKED(IDC_OPENLAUNCH, &OnOpenLaunch)
 	ON_WM_DROPFILES()
 	//}}AFX_MSG_MAP
 	ON_STN_CLICKED(IDC_REGISTRY, &CTabProgram::OnStnClickedRegistry)

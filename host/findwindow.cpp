@@ -1,4 +1,4 @@
-#include <windows.h>
+//#include <windows.h>
 #include "stdafx.h"
 
 struct handle_data {

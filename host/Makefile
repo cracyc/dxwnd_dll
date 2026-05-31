@@ -9,24 +9,24 @@ CPP = cl.exe
 LINK = link.exe
 RC = rc.exe
 
-INCS = /I../Include /I.
-LIBS_COMMON = ../dll/Debug/dxwnd.lib detours.lib
+INCS = /I../Include /I. /I../Include/mfc
+LIBS_COMMON = detours.lib shlwapi.lib legacy_stdio_definitions.lib
 LIBPATH = ../libs
 
 !IF "$(CFG)" == "Debug"
 OUTDIR = Debug
-DEFS = $(COMMON_DEFS) /D "_DEBUG" /D "PSAPI_VERSION=1"
-CFLAGS = /nologo /MTd /W3 /Gm /GX /ZI /Od $(INCS) /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_VC80_UPGRADE=0x0600" /Yu"stdafx.h" /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\dxwnd.pdb" /c
-LFLAGS = /nologo /subsystem:windows /incremental:yes /debug /machine:I386 /out:"$(TARGET)" /pdb:"$(OUTDIR)\dxwnd.pdb" /DYNAMICBASE /NXCOMPAT:NO /LIBPATH:$(LIBPATH)
-LIBS = $(LIBS_COMMON)
-RCFLAGS=/l 0x409 /d "_DEBUG"
-!ELSEIF
+TARGET = Debug\dxwnd.exe
+CFLAGS = /nologo /MTd /W3 /EHa /Zi /Od $(INCS) /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\dxwnd.pdb" /c
+LFLAGS = /nologo /subsystem:windows /incremental:yes /debug /machine:I386 /out:$(TARGET) /pdb:$(OUTDIR)\dxwnd.pdb /DYNAMICBASE /LIBPATH:$(LIBPATH)
+LIBS = $(LIBS_COMMON) ../src/Debug/dxwnd.lib
+RCFLAGS=/l 0x409 /d "_DEBUG" /i.. /i../include/mfc
+!ELSE
 OUTDIR = Release
-CFLAGS=/nologo /MT /W3 /GX /O2 $(INCLUDES) /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_VC80_UPGRADE=0x0600" /Yu"stdafx.h" /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\dxwnd.pdb" /c
-LFLAGS=/nologo /subsystem:windows /incremental:no /machine:I386 /out:"$(TARGET)" /pdb:"$(OUTDIR)\dxwnd.pdb" /DYNAMICBASE /NXCOMPAT:NO /LIBPATH:$(LIBPATH)
-O
-LIBS = $(LIBS_COMMON)
-RCFLAGS=/l 0x409 /d "NDEBUG" /i ".."
+TARGET = Release\dxwnd.exe
+CFLAGS=/nologo /MT /W3 /EHa /O2 /Zi $(INCS) /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\dxwnd.pdb" /c
+LFLAGS=/nologo /subsystem:windows /incremental:no /machine:I386 /DEBUG /out:$(TARGET) /pdb:$(OUTDIR)\dxwnd.pdb /DYNAMICBASE /LIBPATH:$(LIBPATH)
+LIBS = $(LIBS_COMMON) ../src/Release/dxwnd.lib
+RCFLAGS=/l 0x409 /d "NDEBUG" /i.. /i../include/mfc
 !ENDIF
 
 OBJS = \
@@ -119,11 +119,11 @@ OBJS = \
 
 all: $(OUTDIR) $(TARGET)
 
-$(TARGETDIR):
+$(OUTDIR):
 	-mkdir $(OUTDIR)
 
 $(TARGET): $(OBJS)
-	$(LINK) $(LFLAGS)$(OBJS) $(LIBS)
+	$(LINK) $(LFLAGS) $(OBJS) $(LIBS)
 
 .cpp{$(OUTDIR)}.obj:
 	$(CPP) $(CFLAGS) $<

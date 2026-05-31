@@ -2,6 +2,7 @@
 //
 
 #include "stdafx.h"
+#include <afxtempl.h>
 #include "dxwndhost.h"
 #include "TargetDlg.h"
 #include "TabTweaks.h"

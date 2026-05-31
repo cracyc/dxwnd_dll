@@ -1,8 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
+//#include <windows.h>
 #include <stdio.h>
-//#include <winternl.h>
+#include <winternl.h>
 #include "stdafx.h"
 #include "dxwndhost.h"
 

@@ -90,7 +90,7 @@ BEGIN_MESSAGE_MAP(CTabConfDefaults, CDialog)
 	//{{AFX_MSG_MAP(CTabCompat)
 		// NOTE: the ClassWizard will add message map macros here
 	//}}AFX_MSG_MAP
-	ON_BN_CLICKED(IDC_BUTTON_FOGCOLOR, OnFogColor)
+	ON_BN_CLICKED(IDC_BUTTON_FOGCOLOR, &OnFogColor)
 	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
