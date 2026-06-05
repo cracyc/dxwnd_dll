@@ -283,6 +283,7 @@ public: // methods
 	BOOL VerifyTextureLimits(int, int);
 	HKEY d3dRegistryKey;
 	char *RectString(CONST RECT *);
+	void RefreshOnRealize(void);
 	hTable ht;
 
 public: // simple data variables
@@ -457,6 +458,7 @@ private:
 	DWORD TimeShiftRedeemTime;
 	RGBQUAD *DIBRGBQuadEntries;
 	void InitPalette();
+	DWORD dwLastRealizeTime;
 };
 
 class dxwSStack

@@ -29,10 +29,6 @@
 // Heap wrappers
 // ---------------------------------------------------------------------
 
-// FORCEVIRTUALHEAP TRUE will force going to malloc also for default heap, but then HeapFree, HeapDestroy 
-// calls are at risk! 
-// A proper usage of the flag is in combination with early-hook methods.
-#define FORCEVIRTUALHEAP FALSE
 #define HEAPSERIALIZE TRUE
 #define HEAPPADSIZE 1000
 //#define ASSERTDIALOGS
@@ -50,10 +46,7 @@ void popHeap(HANDLE hHeap)
 }
 #endif // ASSERTDIALOGS
 
-static LPVOID VHeapMin = (LPVOID)0xFFFFFFFF;
-static LPVOID VHeapMax = (LPVOID)0x00000000;
 static LPVOID lpLast   = (LPVOID)0x00000000;
-static DWORD iProg = 1;
 static BOOL bRecursed = FALSE;
 
 HANDLE WINAPI extGetProcessHeap(void)
@@ -96,7 +89,6 @@ LPVOID WINAPI extHeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
 	ApiName("HeapAlloc");
 
 	// v2.05.76: recursion fix.
-	//static BOOL bRecursed = FALSE;
 	if(bRecursed) return (*pHeapAlloc)(hHeap, dwFlags, dwBytes);
 	bRecursed = TRUE;
 

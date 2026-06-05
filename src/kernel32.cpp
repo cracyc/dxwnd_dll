@@ -772,12 +772,14 @@ void HookKernelModule(HMODULE module, char *libname)
 		HookLibraryEx(module, FixIOHooks, libname);
 	if( (dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || 
 		(dxw.dwFlags11 & CUSTOMLOCALE) ||
+		(dxw.dwFlags20 & FINDCLOSECHECK) ||
 		(dxw.dwTFlags2 & OUTFILEIO)) HookLibraryEx(module, RemapIOHooks, libname);
 	if(dxw.dwTFlags2 & OUTFILEIO) HookLibraryEx(module, TraceIOHooks, libname);
 #else
 	if( (dxw.dwFlags3 & BUFFEREDIOFIX) || 
 		(dxw.dwFlags20 & HANDLECDLOCK)) HookLibraryEx(module, FixIOHooks, libname);
 	if( (dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || 
+		(dxw.dwFlags20 & FINDCLOSECHECK) ||
 		(dxw.dwFlags11 & CUSTOMLOCALE)) HookLibraryEx(module, RemapIOHooks, libname);
 #endif // DXW_NOTRACES
 	if(dxw.dwFlags14 & WIN16CREATEFILE) HookLibraryEx(module, FixW16Hooks, libname);
@@ -851,7 +853,10 @@ FARPROC Remap_kernel32_ProcAddress(LPCSTR proc, HMODULE hModule)
 	if((dxw.dwFlags3 & BUFFEREDIOFIX) || (dxw.dwFlags20 & HANDLECDLOCK) || (dxw.dwTFlags2 & OUTFILEIO))
 		if (addr=RemapLibraryEx(proc, hModule, FixIOHooks)) return addr;
 
-	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || (dxw.dwFlags11 & CUSTOMLOCALE) || (dxw.dwTFlags2 & OUTFILEIO))
+	if( (dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || 
+		(dxw.dwFlags11 & CUSTOMLOCALE) || 
+		(dxw.dwTFlags2 & OUTFILEIO) || 
+		(dxw.dwFlags20 & FINDCLOSECHECK))
 		if (addr=RemapLibraryEx(proc, hModule, RemapIOHooks)) return addr;
 
 	if (dxw.dwTFlags2 & OUTFILEIO)
@@ -860,7 +865,9 @@ FARPROC Remap_kernel32_ProcAddress(LPCSTR proc, HMODULE hModule)
 	if(dxw.dwFlags3 & BUFFEREDIOFIX)
 		if (addr=RemapLibraryEx(proc, hModule, FixIOHooks)) return addr;
 
-	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || (dxw.dwFlags11 & CUSTOMLOCALE))
+	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || 
+		(dxw.dwFlags20 & FINDCLOSECHECK))
+		(dxw.dwFlags11 & CUSTOMLOCALE))
 		if (addr=RemapLibraryEx(proc, hModule, RemapIOHooks)) return addr;
 #endif // DXW_NOTRACES
 
@@ -6074,6 +6081,7 @@ static char *sKnownCode(DWORD code)
 		case IOCTL_CDROM_PLAY_AUDIO_MSF: ret = "IOCTL_CDROM_PLAY_AUDIO_MSF"; break;
 		case IOCTL_CDROM_SET_VOLUME: ret = "IOCTL_CDROM_SET_VOLUME"; break;
 		case IOCTL_CDROM_READ_Q_CHANNEL: ret = "IOCTL_CDROM_READ_Q_CHANNEL"; break;
+		case IOCTL_CDROM_MEDIA_REMOVAL: ret = "IOCTL_CDROM_MEDIA_REMOVAL"; break;
 		case IOCTL_STORAGE_CHECK_VERIFY: ret = "IOCTL_STORAGE_CHECK_VERIFY"; break;
 		case IOCTL_STORAGE_CHECK_VERIFY2: ret = "IOCTL_STORAGE_CHECK_VERIFY2"; break;
 		case IOCTL_STORAGE_MEDIA_REMOVAL: ret = "IOCTL_STORAGE_MEDIA_REMOVAL"; break;
@@ -6122,6 +6130,10 @@ BOOL WINAPI extDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpI
 				break;
 			case IOCTL_STORAGE_LOAD_MEDIA:
 				OutTraceDW("%s: prevent LOAD media\n", ApiRef);
+				return TRUE;
+				break;
+			case IOCTL_CDROM_MEDIA_REMOVAL:
+				OutTraceDW("%s: prevent REMOVAL media\n", ApiRef);
 				return TRUE;
 				break;
 			default:
@@ -6373,7 +6385,16 @@ BOOL WINAPI extFindClose(HANDLE hFindFile)
 	ApiName("FindClose");
 	OutTraceSYS("%s: hFindFile=%#x\n", ApiRef, hFindFile);
 	if(!pFindClose) pFindClose = FindClose; // ???? 
+
+	if(dxw.dwFlags20 & FINDCLOSECHECK) { // FINDCLOSECHECK
+		if(!HeapValidate(GetProcessHeap(), 0, (LPCVOID)hFindFile)) {
+			OutTrace("%s: hFindFile check failed\n", ApiRef);
+			return FALSE;
+		}
+	}
+
 	res = (*pFindClose)(hFindFile);
+
 	if(res) {
 		OutTraceSYS("%s: OK\n", ApiRef);
 	}

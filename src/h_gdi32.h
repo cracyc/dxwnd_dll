@@ -79,6 +79,7 @@ typedef HBITMAP (WINAPI *CreateDIBitmap_Type)(HDC, BITMAPINFOHEADER *, DWORD, co
 typedef HBITMAP (WINAPI *CreateDIBSection_Type)(HDC, const BITMAPINFO *, UINT, VOID **, HANDLE, DWORD);
 typedef HBITMAP (WINAPI *CreateDiscardableBitmap_Type)(HDC, int, int);
 typedef BOOL	(WINAPI *ExtFloodFill_Type)(HDC, int, int, COLORREF, UINT);
+typedef BOOL	(WINAPI *FloodFill_Type)(HDC, int, int, COLORREF);
 typedef BOOL	(WINAPI *GdiAlphaBlend_Type)(HDC, int, int, int, int, HDC, int, int, int, int, BLENDFUNCTION);
 typedef BOOL	(WINAPI *GdiGradientFill_Type)(HDC, PTRIVERTEX, ULONG, PVOID, ULONG, ULONG);
 typedef BOOL	(WINAPI *GdiTransparentBlt_Type)(HDC, int, int, int, int, HDC, int, int, int, int, UINT);
@@ -197,6 +198,7 @@ DXWEXTERN CreateDIBitmap_Type pCreateDIBitmap DXWINITIALIZED;
 DXWEXTERN CreateDIBSection_Type pCreateDIBSection DXWINITIALIZED;
 DXWEXTERN CreateDiscardableBitmap_Type pCreateDiscardableBitmap DXWINITIALIZED;
 DXWEXTERN ExtFloodFill_Type pExtFloodFill DXWINITIALIZED;
+DXWEXTERN FloodFill_Type pFloodFill DXWINITIALIZED;
 DXWEXTERN GdiAlphaBlend_Type pGdiAlphaBlend DXWINITIALIZED;
 DXWEXTERN GdiGradientFill_Type pGdiGradientFill DXWINITIALIZED;
 DXWEXTERN GdiTransparentBlt_Type pGdiTransparentBlt DXWINITIALIZED;
@@ -309,6 +311,7 @@ extern int WINAPI extGetDIBits(HDC, HBITMAP, UINT, UINT, LPVOID, LPBITMAPINFO, U
 extern HBITMAP WINAPI extCreateDIBitmap(HDC, BITMAPINFOHEADER *, DWORD, const VOID *, const BITMAPINFO *, UINT);
 extern HBITMAP WINAPI extCreateDIBSection(HDC, const BITMAPINFO *, UINT, VOID **, HANDLE, DWORD);
 extern BOOL WINAPI extExtFloodFill(HDC, int, int, COLORREF, UINT);
+extern BOOL WINAPI extFloodFill(HDC, int, int, COLORREF);
 extern HBITMAP WINAPI extCreateDiscardableBitmap(HDC, int, int);
 extern BOOL WINAPI extGdiAlphaBlend(HDC, int, int, int, int, HDC, int, int, int, int, BLENDFUNCTION);
 extern BOOL WINAPI extGdiGradientFill(HDC, PTRIVERTEX, ULONG, PVOID, ULONG, ULONG);

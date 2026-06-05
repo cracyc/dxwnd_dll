@@ -319,6 +319,7 @@ static HookEntryEx_Type Hooks[]={
 	{HOOK_HOT_CANDIDATE, 0, "SwapBuffers", (FARPROC)SwapBuffers, (FARPROC *)&pSwapBuffers, (FARPROC)extSwapBuffers},
 	{HOOK_IAT_CANDIDATE, 0, "UnrealizeObject", (FARPROC)NULL, (FARPROC *)&pUnrealizeObject, (FARPROC)extUnrealizeObject},
 	{HOOK_IAT_CANDIDATE, 0, "StretchDIBits", (FARPROC)StretchDIBits, (FARPROC *)&pStretchDIBits, (FARPROC)extStretchDIBits},
+	{HOOK_HOT_CANDIDATE, 0, "GetDIBits", (FARPROC)GetDIBits, (FARPROC *)&pGetDIBits, (FARPROC)extGetDIBits},
 	{HOOK_HOT_CANDIDATE, 0, "SetDIBits", (FARPROC)SetDIBits, (FARPROC *)&pSetDIBits, (FARPROC)extSetDIBits},
 #ifdef TRACEPALETTE
 	{HOOK_IAT_CANDIDATE, 0, "ResizePalette", (FARPROC)ResizePalette, (FARPROC *)&pResizePalette, (FARPROC)extResizePalette},
@@ -401,7 +402,6 @@ static HookEntryEx_Type RemapHooks[]={
 };
 
 static HookEntryEx_Type SyscallHooks[]={
-	{HOOK_HOT_CANDIDATE, 0, "GetDIBits", (FARPROC)GetDIBits, (FARPROC *)&pGetDIBits, (FARPROC)extGetDIBits},
 	{HOOK_HOT_CANDIDATE, 0, "GetBitmapBits", (FARPROC)GetBitmapBits, (FARPROC *)&pGetBitmapBits, (FARPROC)extGetBitmapBits}, // Win16 compatibility
 	{HOOK_IAT_CANDIDATE, 0, "CreateCompatibleBitmap", (FARPROC)CreateCompatibleBitmap, (FARPROC *)&pCreateCompatibleBitmap, (FARPROC)extCreateCompatibleBitmap}, 
 	{HOOK_IAT_CANDIDATE, 0, "CreateDIBitmap", (FARPROC)CreateDIBitmap, (FARPROC *)&pCreateDIBitmap, (FARPROC)extCreateDIBitmap}, 
@@ -1264,7 +1264,6 @@ HPALETTE WINAPI extSelectPalette(HDC hdc, HPALETTE hpal, BOOL bForceBackground)
 	return ret;
 }
 
-static DWORD dwLastRealizeTime = 0;
 static HPALETTE hLastRealizedPalette = 0;
 
 BOOL WINAPI extAnimatePalette(HPALETTE hpal, UINT iStartIndex, UINT cEntries, const PALETTEENTRY *ppe)
@@ -1332,14 +1331,7 @@ UINT WINAPI extRealizePalette(HDC hdc)
 		// refresh on resize conditioned to configuration flag. It should be possible, though, to predict whether
 		// a window refresh is needed or not given the conditions. To be done ....
 		if(dxw.IsFullScreen() && (dxw.dwFlags3 & REFRESHONREALIZE)){
-			DWORD now = (*pGetTickCount)();
-			if((now - dwLastRealizeTime) > 10){
-				HWND hwnd = dxw.GethWnd();
-				if(!dxw.IsRealDesktop(hwnd)){
-					(*pRedrawWindow)(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_NOFRAME);
-					dwLastRealizeTime = now;
-				}
-			}
+			dxw.RefreshOnRealize();
 		}
 	}
 	else
@@ -4255,12 +4247,42 @@ BOOL WINAPI extExtFloodFill(HDC hdc, int nXStart, int nYStart, COLORREF crColor,
 				sdc.PutPrimaryDC(hdc, TRUE);
 				return ret;
 				break;			
+			case GDIMODE_STRETCHED: 
+				dxw.MapClient(&nXStart, &nYStart);
+				break;
 			default:
 				break;
 		}
 	}
 		
 	ret=(*pExtFloodFill)(hdc, nXStart, nYStart, crColor, fuFillType);
+	_if(!ret) OutErrorGDI("%s: ERROR err=%d\n", ApiRef, GetLastError());
+	return ret;
+}
+
+BOOL WINAPI extFloodFill(HDC hdc, int nXStart, int nYStart, COLORREF crColor)
+{
+	BOOL ret;
+	ApiName("FloodFill");
+	OutTraceGDI("%s: hdc=%#x pos=(%d,%d)\n", ApiRef, hdc, nXStart, nYStart);
+
+	if(dxw.IsToRemap(hdc)) {
+		switch(dxw.GDIEmulationMode){
+			case GDIMODE_SHAREDDC: 
+				sdc.GetPrimaryDC(hdc);
+				ret=(*pFloodFill)(sdc.GetHdc(), nXStart, nYStart, crColor);
+				sdc.PutPrimaryDC(hdc, TRUE);
+				return ret;
+				break;			
+			case GDIMODE_STRETCHED: 
+				dxw.MapClient(&nXStart, &nYStart);
+				break;
+			default:
+				break;
+		}
+	}
+		
+	ret=(*pFloodFill)(hdc, nXStart, nYStart, crColor);
 	_if(!ret) OutErrorGDI("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	return ret;
 }
