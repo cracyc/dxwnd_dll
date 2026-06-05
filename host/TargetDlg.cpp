@@ -748,6 +748,7 @@ void CTargetDlg::InitializeDefaults()
 	m_EmulateXMirroring = FALSE;
 	m_EmulateYMirroring = FALSE;
 	m_SuppressBltFX = FALSE;
+	m_FindCloseCheck = FALSE;
 	m_SetResolution = FALSE;
 	m_DIBPalette = FALSE;
 	m_ClipperMode = 0;

@@ -209,6 +209,7 @@ BOOL CTabTweaks::OnInitDialog()
 		{ "EMULATEXMIRRORING",	"ddraw:EmulateXMirroring", 0, offset(m_EmulateXMirroring) },
 		{ "EMULATEYMIRRORING",	"ddraw:EmulateYMirroring", 0, offset(m_EmulateYMirroring) },
 		{ "SUPPRESSBLTFX",		"ddraw:SuppressBltFX", 0, offset(m_SuppressBltFX) },
+		{ "FINDCLOSECHECK",		"patch:FindCloseCheck", 0, offset(m_FindCloseCheck) },
 		{ NULL, NULL, NULL, NULL }  
 	};
 	// build the tweaks category list

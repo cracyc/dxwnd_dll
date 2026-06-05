@@ -673,6 +673,7 @@ public:
 	BOOL	m_EmulateXMirroring;
 	BOOL	m_EmulateYMirroring;
 	BOOL	m_SuppressBltFX;
+	BOOL	m_FindCloseCheck;
 	BOOL	m_SetResolution;
 	BOOL	m_DIBPalette;
 	int		m_ZBufferMode;
