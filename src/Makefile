@@ -123,7 +123,7 @@ OBJS = \
     $(OUTDIR)\hd3d9.obj \
     $(OUTDIR)\hdsetup.obj \
     $(OUTDIR)\hdxgi.obj \
-    $(OUTDIR)\heap.obj \
+    $(OUTDIR)\kernel32.heap.obj \
     $(OUTDIR)\helpmsgs.obj \
     $(OUTDIR)\hexdump.obj \
     $(OUTDIR)\hidedm.obj \
