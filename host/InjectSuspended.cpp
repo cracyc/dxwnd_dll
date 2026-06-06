@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "dxwndhost.h"
+#include "modenv.h"
 
 extern void clear_shim(HANDLE);
 
@@ -23,6 +24,7 @@ void InjectSuspended(char *exepath, char *dirpath, BOOL bSuspended, BOOL bCommit
 	DWORD t0 = GetTickCount();
 	BOOL ret;
 	LPSTR lpCommandLine = NULL;
+	LPSTR Env = NULL;
 
 	OutTrace("InjectSuspended: exe=\"%s\" dir=\"%s\" commit=%x\n",exepath, dirpath, bCommitPage);
 
@@ -67,7 +69,14 @@ void InjectSuspended(char *exepath, char *dirpath, BOOL bSuspended, BOOL bCommit
 		flags |= CREATE_NO_WINDOW;
 	}
 
-	if (!CreateProcess(exepath, lpCommandLine, 0, 0, TRUE, flags, NULL, dirpath, &sinfo, &pinfo)){
+	if(tm->flags20 & ADDSHAREDDIRPATH){
+		LPSTR envblock = GetEnvironmentStringsA();
+		char shareddir[MAX_PATH + 1];
+		_snprintf(shareddir, MAX_PATH, "%s\\shared", GetDxWndPath());
+		Env = add_to_path(envblock, shareddir);
+		FreeEnvironmentStringsA(envblock);
+	}
+	if (!CreateProcess(exepath, lpCommandLine, 0, 0, TRUE, flags, Env, dirpath, &sinfo, &pinfo)){
 		int err = GetLastError();
 		char *errmsg;
 		switch(err){
@@ -84,9 +93,11 @@ void InjectSuspended(char *exepath, char *dirpath, BOOL bSuspended, BOOL bCommit
 		sprintf(DebugMessage,"CreateProcess \"%s\" \nerror=%d %s", exepath, err, errmsg);
 		MessageBoxEx(0, DebugMessage, "Injection", MB_ICONEXCLAMATION|MB_OK, NULL);
 		OutTrace("%s\n", DebugMessage);
+		if(Env) free(Env);
 		return;
 	}
 
+	if(Env) free(Env);
 	if((tm->tflags2 & OUTSTDIO) && h) CloseHandle(h);
 
 	// v2.06.10: thanks to Crazyc support, here shims can be cleared on the fly 

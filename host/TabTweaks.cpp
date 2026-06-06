@@ -210,6 +210,7 @@ BOOL CTabTweaks::OnInitDialog()
 		{ "EMULATEYMIRRORING",	"ddraw:EmulateYMirroring", 0, offset(m_EmulateYMirroring) },
 		{ "SUPPRESSBLTFX",		"ddraw:SuppressBltFX", 0, offset(m_SuppressBltFX) },
 		{ "FINDCLOSECHECK",		"patch:FindCloseCheck", 0, offset(m_FindCloseCheck) },
+		{ "ADDSHAREDDIRPATH",	"win:AddSharedDirPath", 0, offset(m_AddSharedDirPath) },
 		{ NULL, NULL, NULL, NULL }  
 	};
 	// build the tweaks category list
