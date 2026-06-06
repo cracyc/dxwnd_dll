@@ -48,7 +48,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #else
 #define TRACESUFFIX 
 #endif
-#define VERSION "v2.06.14" DEBUGSUFFIX STREAMSUFFIX TRACESUFFIX
+#define VERSION "v2.06.15.rc2" DEBUGSUFFIX STREAMSUFFIX TRACESUFFIX
 
 #define DDTHREADLOCK 1
 
@@ -724,7 +724,7 @@ static char *FlagNames[24][32] ={{
 	// Flags20
 	"CENTERONEXIT",		"HANDLECDLOCK",		"DISABLEGHOSTING",	"MINIMUMRES",	
 	"ALTERNATEVRETRACE","SUPPRESSBLTFX",	"EMULATEXMIRRORING","EMULATEYMIRRORING",	
-	"GETALLMESSAGES",	"MCISINGLETHREADED","",					"",	
+	"GETALLMESSAGES",	"NONANTIALIASEDFONTS","MCISINGLETHREADED","FINDCLOSECHECK",	
 	"",					"",					"",					"",	
 	"",					"",					"",					"",	
 	"",					"",					"",					"",	

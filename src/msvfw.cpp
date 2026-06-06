@@ -8,6 +8,7 @@
 #include "syslibs.h"
 #include "dxhook.h"
 #include "Vfw.h"
+#include <stdio.h>
 
 #define FCC_VIDC 0x63646976
 #define FCC_IV31 0x31335649
@@ -97,8 +98,6 @@ static char *ExplainICModeFlags(WORD f)
 
 static HIC install_codec(DWORD fccHandler, WORD flags)
 {
-	char path[MAX_PATH];
-	char *p;
 	char *dll = NULL;
 	switch(fccHandler) {
 	case FCC_IV31:
@@ -115,20 +114,20 @@ static HIC install_codec(DWORD fccHandler, WORD flags)
 	if(dll)
 	{
 		HMODULE codec = GetModuleHandleA(dll);
+		bool newload = !codec;
 		static ICOpenFunction_Type pICOpenFunction = NULL;
 		if(!codec) {
+			char path[MAX_PATH];
 			if(!pICOpenFunction)
-				pICOpenFunction = (ICOpenFunction_Type)GetProcAddress(GetModuleHandle("msvfw32"), "ICOpenFunction");
-			GetModuleFileName(GetModuleHandle("dxwnd"), path, MAX_PATH);
-			p = strrchr(path, '\\');
-			strcpy(p, "\\codecs\\");
-			strcat(path, dll);
+				pICOpenFunction = (ICOpenFunction_Type)(*pGetProcAddress)(GetModuleHandleA("msvfw32"), "ICOpenFunction");
+			_snprintf(path, MAX_PATH, "%s\\codecs\\%s", GetDxWndPath(), dll);
 			codec = LoadLibraryA(path);
 		}
 		if(codec) {
-			FARPROC DriverProc = (FARPROC)GetProcAddress(codec, "DriverProc");
+			DRIVERPROC DriverProc = (DRIVERPROC)(*pGetProcAddress)(codec, "DriverProc");
 			if(DriverProc) {
-				return (*pICOpenFunction)(FCC_VIDC, fccHandler, flags, DriverProc);
+				if(newload) DriverProc(NULL, NULL, DRV_LOAD, 0, 0);
+				return (*pICOpenFunction)(FCC_VIDC, fccHandler, flags, (FARPROC)DriverProc);
 			}
 		}
 	}

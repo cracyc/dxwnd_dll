@@ -697,10 +697,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\heap.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\helpmsgs.cpp"
 				>
 			</File>
@@ -750,6 +746,10 @@
 			</File>
 			<File
 				RelativePath=".\kernel32.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\kernel32.heap.cpp"
 				>
 			</File>
 			<File

@@ -232,6 +232,7 @@ LONG WINAPI DxWExceptionHandler(LPEXCEPTION_POINTERS ExceptionInfo)
 		case 0x80000014: // STATUS_EA_LIST_INCONSISTENT
 			// follow on https://efmsoft.com/what-is/amp/?code=0x80000015&type=1
 		*/
+		case 0xE0000001: // trown by CoCreateInstance in codecs for "Barbie Explorer" ...
 		case 0xc0000008: // invalid handle - Better ignore. Ref. "Dungeon Keeper, Deeper Dungeons D3D" 
 		case 0xe06d7363: // v2.05.05: from MSDN: The Visual C++ compiler uses exception code 0xE06D7363 for C++ exceptions. 
 						 // https://blogs.msdn.microsoft.com/oldnewthing/20100730-00/?p=13273

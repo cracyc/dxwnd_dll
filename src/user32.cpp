@@ -10894,7 +10894,12 @@ UINT WINAPI extUserRealizePalette(HDC hdc)
 		mySetPalette(0, 256, PalEntries); 
 		if(IsDebugDW && cEntries) dxw.DumpPalette(cEntries, PalEntries);  
 		ret=cEntries;
-		(*pInvalidateRect)(dxw.GethWnd(), 0, FALSE);
+	//	(*pInvalidateRect)(dxw.GethWnd(), 0, FALSE); // v2.06.15 fix: commented to avoid loops
+		// refresh on resize conditioned to configuration flag. It should be possible, though, to predict whether
+		// a window refresh is needed or not given the conditions. To be done ....
+		if(dxw.IsFullScreen() && (dxw.dwFlags3 & REFRESHONREALIZE)){
+			dxw.RefreshOnRealize();
+		}
 	}
 	else
 		ret=(*pUserRealizePalette)(hdc);

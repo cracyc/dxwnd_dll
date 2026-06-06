@@ -82,6 +82,7 @@ dxwCore::dxwCore()
 	CDADrive = '?';
 	EmulateWin95 = FALSE;
 	dwTransparentColor = 0xFFFFFFFF;
+	dwLastRealizeTime = 0;
 	hTable ht;
 }
 
@@ -2922,4 +2923,18 @@ void dxwCore::SaveCurrentDirectory(void)
 		free(fullBuffer);
 		//for(int c='A';  c<='Z'; c++) OutTrace("dump[%c]=%s\n", c, dxw.CurrDirectories[c-'A']);
 	} while(FALSE);
+}
+
+static DWORD dwLastRealizeTime = 0;
+
+void dxwCore::RefreshOnRealize(void)
+{
+	DWORD now = (*pGetTickCount)();
+	if((now - dwLastRealizeTime) > 10){
+		HWND hwnd = dxw.GethWnd();
+		if(!dxw.IsRealDesktop(hwnd)){
+			(*pRedrawWindow)(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_NOFRAME);
+			dwLastRealizeTime = now;
+		}
+	}
 }
