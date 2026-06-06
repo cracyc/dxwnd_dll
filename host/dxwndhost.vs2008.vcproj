@@ -769,6 +769,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\modenv.h"
+				>
+			</File>
+			<File
 				RelativePath=".\MousePositionDialog.h"
 				>
 			</File>
@@ -1066,6 +1070,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\modenv.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\res\notes.bmp"
 				>
 			</File>
@@ -1179,19 +1187,19 @@
 			</File>
 		</Filter>
 		<File
-			RelativePath=".\res\alt-ctrl-shift.png"
-			>
-		</File>
-		<File
 			RelativePath=".\alt-ctrl-shift.png"
 			>
 		</File>
 		<File
-			RelativePath=".\alt.png"
+			RelativePath=".\res\alt-ctrl-shift.png"
 			>
 		</File>
 		<File
 			RelativePath=".\res\alt.png"
+			>
+		</File>
+		<File
+			RelativePath=".\alt.png"
 			>
 		</File>
 	</Files>

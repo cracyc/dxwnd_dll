@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "dxwndhost.h"
 #include "detours.h"
+#include "modenv.h"
 
 extern void clear_shim(HANDLE);
 
@@ -15,6 +16,8 @@ void InjectDetours(char *exepath, char *dirpath, BOOL bSuspended, BOOL bCommitPa
 	LPSTR lpCommandLine = NULL;
 	PROCESS_INFORMATION pi;
 	STARTUPINFOA sinfo = {0};
+	LPSTR Env = NULL;
+
 	OutTrace("InjectDetours: exe=\"%s\" dir=\"%s\" commit=%x\n",exepath, dirpath, bCommitPage);
 
 	hEvent = CreateEvent(NULL, FALSE, FALSE, eventName);
@@ -59,7 +62,14 @@ void InjectDetours(char *exepath, char *dirpath, BOOL bSuspended, BOOL bCommitPa
 		flags |= CREATE_NO_WINDOW;
 	}
 
-	if (!CreateProcess(exepath, lpCommandLine, 0, 0, TRUE, flags, NULL, dirpath, &sinfo, &pi)){
+	if(tm->flags20 & ADDSHAREDDIRPATH){
+		LPSTR envblock = GetEnvironmentStringsA();
+		char shareddir[MAX_PATH + 1];
+		_snprintf(shareddir, MAX_PATH, "%s\\shared", GetDxWndPath());
+		Env = add_to_path(envblock, shareddir);
+		FreeEnvironmentStringsA(envblock);
+	}
+	if (!CreateProcess(exepath, lpCommandLine, 0, 0, TRUE, flags, Env, dirpath, &sinfo, &pi)){
 		char DebugMessage[MAX_PATH + 80];
 		int err = GetLastError();
 		char *errmsg;
@@ -77,8 +87,10 @@ void InjectDetours(char *exepath, char *dirpath, BOOL bSuspended, BOOL bCommitPa
 		sprintf(DebugMessage,"CreateProcess \"%s\" \nerror=%d %s", exepath, err, errmsg);
 		MessageBoxEx(0, DebugMessage, "Injection", MB_ICONEXCLAMATION|MB_OK, NULL);
 		OutTrace("%s\n", DebugMessage);
+		if(Env) free(Env);
 		return;
 	}
+	if(Env) free(Env);
 
 	// v2.06.10: thanks to Crazyc support, here shims can be cleared on the fly 
 	// with no need to copy the executable file
