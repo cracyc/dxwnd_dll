@@ -273,22 +273,25 @@ BOOL CTabProgram::PreTranslateMessage(MSG *pMsg)
 
 void CTabProgram::OnOpen() 
 {
-    char path[MAX_PATH];
+	char path[MAX_PATH];
+	char dir[MAX_PATH];
 	CTargetDlg *cTarget = ((CTargetDlg *)(this->GetParent()->GetParent()));
-	cTarget->m_File.GetWindowText(path, MAX_PATH);
+	cTarget->m_File.GetWindowText(dir, MAX_PATH);
 	if(gStripRoot){
 		strcpy_s(gInitPath, MAX_PATH, gProgramRootFolder);
 	}
 	else {
-		GetPrivateProfileString("window", "exepath", NULL, path, MAX_PATH, gInitPath);
+		GetPrivateProfileString("window", "exepath", NULL, dir, MAX_PATH, gInitPath);
 	}
-	if(!dirExists(path)) strcpy(path, "");
-	// XP fix: path must end with '\.' 
-	if(IsWinXP()) if((strlen(path) > 2) && (path[strlen(path)-1] == '\\')) strcat(path, ".");
+	if(!dirExists(dir)) strcpy(dir, "");
+	// XP fix: dir must end with '\.' 
+	if(IsWinXP()) if((strlen(dir) > 2) && (dir[strlen(dir)-1] == '\\')) strcat(dir, ".");
 	while(TRUE){
 		int ret;
+		path[0] = 0;
 		CFileDialog dlg( TRUE, "*.*", path, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
 			"Program (*.exe)|*.exe|All files (*.*)|*.*||",  this);
+		dlg.m_ofn.lpstrInitialDir = dir;
 		ret = dlg.DoModal();
 		//char debug[512];
 		//sprintf(debug, "ret=%x path=%s", ret, path);
@@ -310,18 +313,21 @@ void CTabProgram::OnOpen()
 
 void CTabProgram::OnOpenLaunch() 
 {
-    char path[MAX_PATH];
+	char path[MAX_PATH];
+	char dir[MAX_PATH];
 	CTargetDlg *cTarget = ((CTargetDlg *)(this->GetParent()->GetParent()));
-	cTarget->m_File.GetWindowText(path, MAX_PATH);
-	GetPrivateProfileString("window", "exepath", NULL, path, MAX_PATH, gInitPath);
-	if(!dirExists(path)) strcpy(path, "");
+	cTarget->m_File.GetWindowText(dir, MAX_PATH);
+	GetPrivateProfileString("window", "exepath", NULL, dir, MAX_PATH, gInitPath);
+	if(!dirExists(dir)) strcpy(dir, "");
 	// XP fix: path must end with '\.' 
-	if(IsWinXP()) if((strlen(path) > 2) && (path[strlen(path)-1] == '\\')) strcat(path, ".");
+	if(IsWinXP()) if((strlen(dir) > 2) && (path[strlen(dir)-1] == '\\')) strcat(dir, ".");
 	while(TRUE){
 		int ret;
+		path[0] = 0;
 		CFileDialog dlg( TRUE, "*.*", path, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
 			"Program (*.exe)|*.exe|Batch file (*.bat)|*.bat|CMD file (*.cmd)|*.cmd|All files (*.*)|*.*||",  
 			this);
+		dlg.m_ofn.lpstrInitialDir = dir;
 		ret = dlg.DoModal();
 		//char debug[512];
 		//sprintf(debug, "ret=%x path=%s", ret, path);
