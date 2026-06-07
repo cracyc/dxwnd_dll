@@ -681,6 +681,7 @@
 #define NONANTIALIASEDFONTS	0x00000200 // forces NONANTIALIASED_QUALITY fonts
 #define MCISINGLETHREADED	0x00000400 // run all mciSendCommand instances from a single thread
 #define FINDCLOSECHECK		0x00000800 // enables a check for FindClose with wrong arguments (needed for "iM1A2 Abrams")
+#define ADDSHAREDDIRPATH	0x00001000 
 
 // debug Dflags DWORD:
 #define CPUVENDORMASK		0x00000007

@@ -64,6 +64,7 @@ OBJS = \
 	$(OUTDIR)\KillProcTree.obj \
 	$(OUTDIR)\MainFrm.obj \
 	$(OUTDIR)\MessageBox.obj \
+	$(OUTDIR)\modenv.obj \
 	$(OUTDIR)\MousePositionDialog.obj \
 	$(OUTDIR)\OutTrace.obj \
 	$(OUTDIR)\PaletteDialog.obj \
