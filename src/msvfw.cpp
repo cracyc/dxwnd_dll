@@ -11,10 +11,10 @@
 #include <stdio.h>
 
 #define FCC_VIDC 0x63646976
-#define FCC_IV31 0x31335649
-#define FCC_IV32 0x32335649
-#define FCC_IV41 0x31345649
-#define FCC_IV50 0x30355649
+#define FCC_IV31 0x31337669
+#define FCC_IV32 0x32337669
+#define FCC_IV41 0x31347669
+#define FCC_IV50 0x30357669
 
 extern char *sFourCC(DWORD);
 
@@ -134,6 +134,13 @@ static HIC install_codec(DWORD fccHandler, WORD flags)
 	return NULL;
 }
 
+static DWORD fcctolower(DWORD fcc)
+{
+	char *strfcc = (char *)&fcc;
+	for(int i = 0; i < 4; i++) strfcc[i] = tolower(strfcc[i]);
+	return fcc;
+}
+
 HIC WINAPI extICOpen(DWORD fccType, DWORD fccHandler, UINT wMode)
 {
 	HIC res;
@@ -143,7 +150,7 @@ HIC WINAPI extICOpen(DWORD fccType, DWORD fccHandler, UINT wMode)
 		ApiRef, fccType, sFourCC(fccType), fccHandler, wMode, ExplainICModeFlags(wMode));
 
 	res=(*pICOpen)(fccType, fccHandler, wMode);
-	if(!res && 1/*INJECTINDEO*/ && (fccType == FCC_VIDC)) {
+	if(!res && 1/*INJECTINDEO*/ && (fcctolower(fccType) == FCC_VIDC)) {
 		res = install_codec(fccHandler, wMode);
 	}
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, res);
@@ -160,7 +167,7 @@ HIC VFWAPI extICLocate(DWORD fccType, DWORD fccHandler, LPBITMAPINFOHEADER lpbiI
 		fccHandler, sFourCC(fccHandler), 
 		wflags, ExplainICModeFlags(wflags));
 
-	if(IsTraceSYS){
+	if(lpbiIn && IsTraceSYS){
 		OutTrace("> size=(%dx%d)\n", lpbiIn->biWidth, lpbiIn->biHeight);
 		OutTrace("> planes=%d\n", lpbiIn->biPlanes);
 		OutTrace("> bitcount=%d\n", lpbiIn->biBitCount);
@@ -179,7 +186,7 @@ HIC VFWAPI extICLocate(DWORD fccType, DWORD fccHandler, LPBITMAPINFOHEADER lpbiI
 		OutTrace("< colors(used/imp)=%d/%d\n", lpbiOut->biClrUsed, lpbiOut->biClrImportant);
 	}
 	res=(*pICLocate)(fccType, fccHandler, lpbiIn, lpbiOut, wflags);
-	if(!res && 1/*INJECTINDEO*/ && (fccType == FCC_VIDC)) {
+	if(!res && 1/*INJECTINDEO*/ && (fcctolower(fccType) == FCC_VIDC)) {
 		res = install_codec(fccHandler, wflags);
 	}
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, res);

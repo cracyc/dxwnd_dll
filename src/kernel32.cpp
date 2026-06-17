@@ -1,5 +1,7 @@
 #define  _CRT_SECURE_NO_WARNINGS
 
+#define HANDLEFAKERAWDEVICE
+
 #define _MODULE "kernel32"
 
 #include "dxwnd.h"
@@ -54,6 +56,9 @@ extern void HookModule(HMODULE);
 extern void HookDlls(HMODULE);
 
 HANDLE CDLockFile = 0;
+#ifdef HANDLEFAKERAWDEVICE
+HANDLE hFakeCDRawDevice = 0;
+#endif
 
 typedef DWORD (WINAPI *WaitForSingleObject_Type)(HANDLE, DWORD);
 DWORD WINAPI extWaitForSingleObject(HANDLE, DWORD);
@@ -2050,6 +2055,26 @@ HMODULE WINAPI LoadLibraryExWrapper(LPVOID lpFileName, BOOL IsWidechar, HANDLE h
 		}
 #endif // DXW_NOTRACES
 
+		// this helps mm director and quicktime > 2 work with quicktime files in the shared dir
+		if(!libhandle && (dxw.dwFlags20 & ADDSHAREDDIRPATH)){
+			if(IsWidechar){
+				wchar_t *filename = (wchar_t *)lpFileName;
+				if((wcslen(filename) > 3) && !wcsncmp(filename + 1, L":\\", 2)){
+					wchar_t *p;
+					while (p = wcsrchr(filename, L'\\')) filename = p + 1;
+					libhandle = (*pLoadLibraryExW)(filename, hFile, dwFlags);
+				}
+			}
+			else {
+				char *filename = (char *)lpFileName;
+				if((strlen(filename) > 3) && !strncmp(filename + 1, ":\\", 2)){
+					char *p;
+					while (p = strrchr(filename, '\\')) filename = p + 1;
+					libhandle = (*pLoadLibraryExA)(filename, hFile, dwFlags);
+				}
+			}
+		}
+
 		if(!libhandle){
 			if(IsWidechar){
 				OutErrorSYS("%s: ERROR FileName=%ls err=%d\n", ApiRef, lpFileName, GetLastError());
@@ -2633,6 +2658,7 @@ HANDLE WINAPI extCreateFileA(LPCTSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 							DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
 	HANDLE ret;
+	BOOL bRawDevice = FALSE;
 	ApiName("CreateFileA");
 
 	int err=0;
@@ -2652,6 +2678,7 @@ HANDLE WINAPI extCreateFileA(LPCTSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 
 		// if mapped on virtual CD and write access required, you should fake a no access error code
 		if(mapping == DXW_FAKE_CD){
+			bRawDevice = !strncmp(lpFileName, "\\\\.\\", 4);
 			if(dxw.dwFlags14 & WIN16CREATEFILE){
 				if(dwDesiredAccess == (GENERIC_WRITE|GENERIC_READ)){
 					OutTraceDW("%s: WIN16CREATEFILE use READ mode\n", ApiRef);
@@ -2704,6 +2731,12 @@ HANDLE WINAPI extCreateFileA(LPCTSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 		}
 	}
 
+#ifdef HANDLEFAKERAWDEVICE
+	if(bRawDevice) {
+		OutTraceDW("%s: registered raw device hfile=%#x\n", ApiRef, ret);
+		hFakeCDRawDevice = ret;
+	}
+#endif
 	return ret;
 } 
 
@@ -4347,6 +4380,9 @@ BOOL WINAPI extCloseHandle(HANDLE hObject)
 		OutTraceDW("%s: BYPASS EXCEPTION hObject=%#x\n", ApiRef, hObject);
 		ret = TRUE;
 	}
+#ifdef HANDLEFAKERAWDEVICE
+	if(hFakeCDRawDevice == hObject) hFakeCDRawDevice = INVALID_HANDLE_VALUE;
+#endif
 	return ret;
 }
 
@@ -6176,13 +6212,13 @@ BOOL WINAPI extDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpI
 		}
 	}
 
-	// Rugrats Adventure Game - ???
-	//if(!ret && (dwIoControlCode == IOCTL_DISK_MEDIA_REMOVAL)){
-	//	// pretend it worked ...
-	//	OutTraceDW("%s: simulate IOCTL_DISK_MEDIA_REMOVAL\n", ApiRef);
-	//	ret = TRUE;
-	//}
-
+#ifdef HANDLEFAKERAWDEVICE
+	if((hDevice == hFakeCDRawDevice) && !ret){
+		OutTraceDW("%s: fake success on raw device\n", ApiRef);
+		if(lpBytesReturned) *lpBytesReturned = 0;
+		ret = TRUE;
+	}
+#endif
 	return ret;
 }
 
@@ -6329,18 +6365,35 @@ BOOL WINAPI extReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRea
 	}
 #endif // DXW_NOTRACES
 
+#ifdef HANDLEFAKERAWDEVICE
+	if((hFile == hFakeCDRawDevice) && !ret){
+		OutTraceDW("%s: fake success on raw device\n", ApiRef);
+		*lpNumberOfBytesRead = nNumberOfBytesToRead;
+		ret = TRUE;
+	}
+#endif
+
 	return ret;
 }
 
 #ifndef DXW_NOTRACES
 UINT WINAPI ext_lread(HFILE hFile, LPVOID lpBuffer, UINT uBytes)
 {
-	UINT res;
+	UINT ret;
 	ApiName("_lread");
 	OutTraceSYS("%s: hfile=%#x buf=%#x bytes=%d\n", ApiRef, hFile, lpBuffer, uBytes);
-	res = (*p_lread)(hFile, lpBuffer, uBytes);
-	OutTraceSYS("%s: ret=%d\n", ApiRef, res);
-	return res;
+	ret = (*p_lread)(hFile, lpBuffer, uBytes);
+
+#ifndef DXW_NOTRACES
+	if(ret){
+		OutTraceSYS("%s: NumberOfBytesRead=%d\n", ApiRef, ret);
+		OutHexSYS((LPBYTE)lpBuffer, ret);
+	} else {
+		OutTraceSYS("%s: ERROR ret=0 err=%d\n", ApiRef, GetLastError());
+	}
+#endif // DXW_NOTRACES
+
+	return ret;
 }
 
 long WINAPI ext_hread(HFILE hFile, LPVOID lpBuffer, long lBytes)

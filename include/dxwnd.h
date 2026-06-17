@@ -681,7 +681,8 @@
 #define NONANTIALIASEDFONTS	0x00000200 // forces NONANTIALIASED_QUALITY fonts
 #define MCISINGLETHREADED	0x00000400 // run all mciSendCommand instances from a single thread
 #define FINDCLOSECHECK		0x00000800 // enables a check for FindClose with wrong arguments (needed for "iM1A2 Abrams")
-#define ADDSHAREDDIRPATH	0x00001000 
+#define ADDSHAREDDIRPATH	0x00001000 // adds the DxWnd\shared folder to the libraries search path
+#define FIXGNOMEMOVIES		0x00002000 // recovers the truncated negative coordinates in G-Nome movies
 
 // debug Dflags DWORD:
 #define CPUVENDORMASK		0x00000007

@@ -1301,6 +1301,7 @@ void SetTargetFromDlg(TARGETMAP *t, CTargetDlg *dlg)
 	if(dlg->m_SuppressBltFX) t->flags20 |= SUPPRESSBLTFX;
 	if(dlg->m_FindCloseCheck) t->flags20 |= FINDCLOSECHECK;
 	if(dlg->m_AddSharedDirPath) t->flags20 |= ADDSHAREDDIRPATH;
+	if(dlg->m_FixGNomeMovies) t->flags20 |= FIXGNOMEMOVIES;
 	if(dlg->m_SetResolution) t->flags19 |= SETRESOLUTION;
 
 	if(dlg->m_DIBPalette) t->flags19 |= DIBPALETTE;
@@ -2141,6 +2142,7 @@ static void SetDlgFromTarget(TARGETMAP *t, CTargetDlg *dlg)
 	dlg->m_SuppressBltFX = t->flags20 & SUPPRESSBLTFX ? 1 : 0;
 	dlg->m_FindCloseCheck = t->flags20 & FINDCLOSECHECK ? 1 : 0;
 	dlg->m_AddSharedDirPath = t->flags20 & ADDSHAREDDIRPATH ? 1 : 0;
+	dlg->m_FixGNomeMovies = t->flags20 & FIXGNOMEMOVIES ? 1 : 0;
 	dlg->m_SetResolution = t->flags19 & SETRESOLUTION ? 1 : 0;
 	dlg->m_DIBPalette = t->flags19 & DIBPALETTE ? 1 : 0;
 	dlg->m_PosX = t->posx;

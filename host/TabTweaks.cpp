@@ -212,6 +212,7 @@ BOOL CTabTweaks::OnInitDialog()
 		{ "SUPPRESSBLTFX",		"ddraw:SuppressBltFX", 0, offset(m_SuppressBltFX) },
 		{ "FINDCLOSECHECK",		"patch:FindCloseCheck", 0, offset(m_FindCloseCheck) },
 		{ "ADDSHAREDDIRPATH",	"win:AddSharedDirPath", 0, offset(m_AddSharedDirPath) },
+		{ "FIXGNOMEMOVIES",		"patch:FixG-NomeMovies", 0, offset(m_FixGNomeMovies) },
 		{ NULL, NULL, NULL, NULL }  
 	};
 	// build the tweaks category list
