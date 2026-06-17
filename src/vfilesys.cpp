@@ -4,10 +4,16 @@
 #include "syslibs.h"
 #include "stdio.h"
 
+#define HANDLEFAKERAWDEVICE
+
 typedef DWORD (WINAPI *GetCurrentDirectoryA_Type)(DWORD, LPSTR);
 extern GetCurrentDirectoryA_Type pGetCurrentDirectoryA;
 typedef DWORD (WINAPI *GetModuleFileNameA_Type)(HMODULE, LPSTR, DWORD);
 extern GetModuleFileNameA_Type pGetModuleFileNameA;
+
+#ifdef HANDLEFAKERAWDEVICE
+BOOL bFakeReadSuccess = FALSE;
+#endif
 
 void PeekHotKeys()
 {
@@ -217,6 +223,17 @@ LPCSTR dxwTranslatePathA(LPCSTR lpFileName, DWORD *mapping)
 			OutTraceDW("TranslatePath: fake CD new FileName=\"%s\"\n", lpFileName);
 			break;
 		}
+#ifdef HANDLEFAKERAWDEVICE
+		if((dxw.dwFlags10 & FAKECDDRIVE) && !strncmp(lpFileName, "\\\\.\\", 4)){
+			strncpy(sNewPath, dxwGetFakeDriverPath(DXW_CD_PATH), MAX_PATH);
+			strncat(sNewPath, "\\$RAWDISK", MAX_PATH - strlen("\\$RAWDISK") - 1);
+			lpFileName = sNewPath;
+			dwMapping = DXW_FAKE_CD;
+			OutTraceDW("TranslatePath: fake CD new FileName=\"%s\"\n", lpFileName);
+			bFakeReadSuccess = TRUE;
+			break;
+		}
+#endif
 		if((dxw.dwCurrentFolderType != DXW_NO_FAKE) && !hasDriveLetter){
 			// v2.05.79: fixed relative path translation on fake drives: the current directory could be
 			// a subfolder of the current fake driver, so it's not correct to join the drive letter plus

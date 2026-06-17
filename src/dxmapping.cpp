@@ -7,6 +7,8 @@
 #include "dxhelper.h"
 
 //#define NOROUNDING 
+//#define LOGCLIENTUNMAPPING(x, y) OutTrace("---> UnmapClient(%i,%i) @%d\n", (x), (y), __LINE__)
+#define LOGCLIENTUNMAPPING(x, y) 
 
 // IsValidMainWindow: returns TRUE if the main window can be queried for coordinates, 
 // FALSE otherwise (e.g. when minimized)
@@ -387,6 +389,7 @@ void dxwCore::UnmapClient(LPPOINT lppoint)
 		lppoint->x = ((lppoint->x * (int)dwScreenWidth) + (iSizX >> 1)) / iSizX;
 		lppoint->y = ((lppoint->y * (int)dwScreenHeight) + (iSizY >> 1)) / iSizY;
 	}
+	LOGCLIENTUNMAPPING(lppoint->x, lppoint->y);
 }
 
 void dxwCore::UnmapClient(int *nXDest, int *nYDest)
@@ -395,6 +398,7 @@ void dxwCore::UnmapClient(int *nXDest, int *nYDest)
 		*nXDest = ((*nXDest * (int)dwScreenWidth) + (iSizX >> 1)) / iSizX;
 		*nYDest = ((*nYDest * (int)dwScreenHeight) + (iSizY >> 1)) / iSizY;
 	}
+	LOGCLIENTUNMAPPING(*nXDest, *nYDest);
 }
 
 void dxwCore::UnmapClient(int *nXDest, int *nYDest, int *nWidth, int *nHeight)
@@ -405,6 +409,7 @@ void dxwCore::UnmapClient(int *nXDest, int *nYDest, int *nWidth, int *nHeight)
 		*nWidth = ((*nWidth * (int)dwScreenWidth) + (iSizX >> 1)) / iSizX;
 		*nHeight = ((*nHeight * (int)dwScreenHeight) + (iSizY >> 1)) / iSizY;
 	}
+	LOGCLIENTUNMAPPING(*nWidth, *nHeight);
 }
 
 void dxwCore::UnmapClient(LPRECT lpRect)
@@ -415,6 +420,7 @@ void dxwCore::UnmapClient(LPRECT lpRect)
 		lpRect->top = ((lpRect->top * (int)dwScreenHeight) + (iSizY >> 1)) / iSizY;
 		lpRect->bottom = ((lpRect->bottom * (int)dwScreenHeight) + (iSizY >> 1)) / iSizY;
 	}
+	LOGCLIENTUNMAPPING(lpRect->right-lpRect->left, lpRect->bottom-lpRect->top);
 }
 
 void dxwCore::UnmapClient(float *nXDest, float *nYDest)
@@ -423,6 +429,7 @@ void dxwCore::UnmapClient(float *nXDest, float *nYDest)
 		*nXDest= ((*nXDest * (float)dwScreenWidth)) / (float)iSizX;
 		*nYDest= ((*nYDest * (float)dwScreenHeight)) / (float)iSizY;
 	}
+	LOGCLIENTUNMAPPING((int)nXDest, (int)nYDest);
 }
 
 void dxwCore::UnmapClient(double *nXDest, double *nYDest)
@@ -431,6 +438,7 @@ void dxwCore::UnmapClient(double *nXDest, double *nYDest)
 		*nXDest= ((*nXDest * (double)dwScreenWidth)) / (double)iSizX;
 		*nYDest= ((*nYDest * (double)dwScreenHeight)) / (double)iSizY;
 	}
+	LOGCLIENTUNMAPPING((int)nXDest, (int)nYDest);
 }
 
 // GetMonitorWorkarea: retrieves the desktop coordinates of the whole desktop (id == -1) or of a given monitor (id >= 0)

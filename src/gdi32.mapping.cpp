@@ -116,12 +116,6 @@ BOOL WINAPI extSetWindowOrgEx(HDC hdc, int X, int Y, LPPOINT lpPoint)
  	if (dxw.Windowize){
 		dxw.MapClient(&X, &Y);
 		OutTraceGDI("%s: fixed origin=(%d,%d)\n", ApiRef, X, Y);
-		// v2.06.14: fixed by crazyc. Offset should not be applied to Memory DC
-		// Fixes @#@ "Eternal Daughter"
-		if((GetObjectType(hdc) == OBJ_DC) && dxw.IsFullScreen()){ 
-			X += dxw.iPosX;
-			Y += dxw.iPosY;
-		}
 	}
 
 	ret=(*pSetWindowOrgEx)(hdc, X, Y, lpPoint);
@@ -152,12 +146,8 @@ BOOL WINAPI extGetWindowOrgEx(HDC hdc, LPPOINT lpPoint)
 		if(lpPoint) {
 			OutTraceGDI("%s: hdc=%#x WindowOrg=(%d,%d)\n", ApiRef, hdc, lpPoint->x, lpPoint->y);
 			if (dxw.Windowize){
-				if(dxw.IsFullScreen()){
-					lpPoint->x -= dxw.iPosX;
-					lpPoint->y -= dxw.iPosY;
-				}
 				dxw.UnmapClient(lpPoint);
-				OutTraceGDI("%s: fixed origin=(%d,%d)\n", ApiRef, lpPoint->x, lpPoint->y);
+				OutTraceGDI("%s: fixed WindowOrg=(%d,%d)\n", ApiRef, lpPoint->x, lpPoint->y);
 			}
 		}
 	}

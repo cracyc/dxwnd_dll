@@ -1854,14 +1854,20 @@ DWORD WINAPI waveout_thread(LPVOID param)
 	MSG msg;
 	BOOL ret;
 	void (WINAPI *waveoutproc)(HWAVEOUT, UINT, DWORD, DWORD, DWORD);
-	waveoutproc = (void (WINAPI *)(HWAVEOUT, UINT, DWORD, DWORD, DWORD))param;
+	waveoutproc = (void (WINAPI *)(HWAVEOUT, UINT, DWORD, DWORD, DWORD))((DWORD *)param)[0];
+	DWORD inst = ((DWORD *)param)[1];
+	free(param);
 	while(ret = GetMessageA(&msg, NULL, 0, 0)){
 	   if(ret == -1) return -1;
+		OutDebugSND("waveOutProc: hwo=%#x msg=%d(%s) instance=%#x wp=%#x lp=%#x\n",
+			msg.wParam, msg.message, 
+			msg.message == MM_WOM_OPEN ? "WOM_OPEN" : (msg.message == MM_WOM_CLOSE ? "WOM_CLOSE" : (msg.message == MM_WOM_DONE ? "WOM_DONE" : "???")),
+			inst, msg.lParam);
 	   switch(msg.message){
 		   case MM_WOM_OPEN:
 		   case MM_WOM_CLOSE:
 		   case MM_WOM_DONE:
-			   waveoutproc((HWAVEOUT)msg.wParam, msg.message, 0, msg.lParam, 0);
+			   waveoutproc((HWAVEOUT)msg.wParam, msg.message, inst, msg.lParam, 0);
 			   if(msg.message == MM_WOM_CLOSE) return 0;
 			   break;
 		   case WM_USER+10:
@@ -1911,7 +1917,11 @@ MMRESULT WINAPI extwaveOutOpen(LPHWAVEOUT phwo, UINT_PTR uDeviceID, LPWAVEFORMAT
 			pwaveOutProc = (waveOutProc_Type)dwCallback;
 			dwCallback = (DWORD_PTR)waveOutProcAsync;
 #else
-			CloseHandle(CreateThread(NULL, 0, waveout_thread, (LPVOID)dwCallback, 0, &threadid));
+			// v2.'6'15: Crazyc patch, fixes "iM1A2 Abrams" sound in async mode
+			DWORD *callback = (DWORD *)malloc(sizeof(DWORD) * 2);
+			callback[0] = dwCallback;
+			callback[1] = dwCallbackInstance;
+			CloseHandle(CreateThread(NULL, 0, waveout_thread, (LPVOID)callback, 0, &threadid));
 			fdwOpen = (fdwOpen & ~CALLBACK_TYPEMASK) | CALLBACK_THREAD;
 			dwCallback = threadid;
 #endif
@@ -2257,7 +2267,9 @@ MMRESULT WINAPI extwaveOutGetPosition(HWAVEOUT hwo, LPMMTIME pmmt, UINT cbmmt)
 		return 0;
 	}
 	ret = (*pwaveOutGetPosition)(hwo, pmmt, cbmmt);
-	if(ret) OutErrorSND("%s: ERROR res=%#x(%s)\n", ApiRef, ret, mmErrorString(ret));
+	if(ret) {
+		OutErrorSND("%s: ERROR res=%#x(%s)\n", ApiRef, ret, mmErrorString(ret));
+	}
 #ifndef DXW_NOTRACES
 	else {
 		if(IsTraceSND){

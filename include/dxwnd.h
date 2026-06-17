@@ -673,6 +673,16 @@
 #define HANDLECDLOCK		0x00000002 // unprotect CD-Lock protection
 #define DISABLEGHOSTING		0x00000004 // Disable Windows ghosting feature 
 #define MINIMUMRES			0x00000008 // minimum supported resolution
+#define ALTERNATEVRETRACE	0x00000010 // simulate a vertical retrace status change on interrupt 3DA
+#define SUPPRESSBLTFX		0x00000020 // zero-es the lpddbltfx->dwDDFX flags
+#define EMULATEXMIRRORING	0x00000040 // emulates a X mirrored Bld using StretchBlt
+#define EMULATEYMIRRORING	0x00000080 // emulates a Y mirrored Bld using StretchBlt
+#define GETALLMESSAGES		0x00000100 // ....
+#define NONANTIALIASEDFONTS	0x00000200 // forces NONANTIALIASED_QUALITY fonts
+#define MCISINGLETHREADED	0x00000400 // run all mciSendCommand instances from a single thread
+#define FINDCLOSECHECK		0x00000800 // enables a check for FindClose with wrong arguments (needed for "iM1A2 Abrams")
+#define ADDSHAREDDIRPATH	0x00001000 // adds the DxWnd\shared folder to the libraries search path
+#define FIXGNOMEMOVIES		0x00002000 // recovers the truncated negative coordinates in G-Nome movies
 
 // debug Dflags DWORD:
 #define CPUVENDORMASK		0x00000007
@@ -717,6 +727,8 @@
 #define DUMPBLITSRC			0x00000010 // dump surfaces source of a Blt operation
 #define DISABLEWINHOOK		0x00000040 // disables the system-wide Window hook set by default
 #define FORCED3DCHECKOK		0x00000080 // forces a positive checks for all D3D Check* methods
+#define FORCEXMIRRORING		0x00000100 
+#define FORCEYMIRRORING		0x00000200
 #define EXPERIMENTAL		0x01000000 // activate version-specific code variants. Developer's use only.
 #define EXPERIMENTAL2		0x02000000
 #define EXPERIMENTAL3		0x04000000

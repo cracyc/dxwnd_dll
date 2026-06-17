@@ -1641,6 +1641,7 @@ BOOL WINAPI extGDIBitBlt(HDC hdcDest, int nXDest, int nYDest, int nWidth, int nH
 	BOOL IsDCLeakageDest = FALSE;
 	int Flux;
 	int nOrigHeight = nHeight;
+	int saveX, saveY, saveW, saveH;
 
 	OutTraceGDI("%s: HDC=%#x(type=%s) nXDest=%d nYDest=%d nWidth=%d nHeight=%d hdcSrc=%#x(type=%s) nXSrc=%d nYSrc=%d dwRop=%#x(%s)\n", 
 		ApiRef, hdcDest, GetObjectTypeStr(hdcDest), nXDest, nYDest, nWidth, nHeight, 
@@ -1713,25 +1714,6 @@ BOOL WINAPI extGDIBitBlt(HDC hdcDest, int nXDest, int nYDest, int nWidth, int nH
 		int nWDest, nHDest;
 		int prevMode;
 		switch(dxw.GDIEmulationMode){
-			case GDIMODE_SHAREDDC:
-				switch(Flux){
-					case 0: // memory to memory
-						res=(*pGDIBitBlt)(hdcDest, nXDest, nYDest, nWidth, nHeight, hdcSrc, nXSrc, nYSrc, dwRop);
-						break;
-					case 1: // memory to screen
-					case 3: // screen to screen
-						sdc.SetOrigin(nXSrc, nYSrc);
-						sdc.GetPrimaryDC(hdcDest, hdcSrc);
-						res=(*pGDIBitBlt)(sdc.GetHdc(), nXDest, nYDest, nWidth, nHeight, hdcSrc, nXSrc, nYSrc, dwRop);
-						sdc.PutPrimaryDC(hdcDest, TRUE, nXDest, nYDest, nWidth, nHeight);
-						break;
-					case 2: // screen to memory
-						sdc.GetPrimaryDC(hdcSrc);
-						res=(*pGDIBitBlt)(hdcDest, nXDest, nYDest, nWidth, nHeight, sdc.GetHdc(), nXSrc, nYSrc, dwRop);
-						sdc.PutPrimaryDC(hdcSrc, TRUE, nXDest, nYDest, nWidth, nHeight);
-						break;
-				}
-				break;
 			case GDIMODE_STRETCHED: 
 				nWDest= nWidth;
 				nHDest= nHeight;
@@ -1766,10 +1748,13 @@ BOOL WINAPI extGDIBitBlt(HDC hdcDest, int nXDest, int nYDest, int nWidth, int nH
 							res=(*pGDIStretchBlt)(hdcDest, nXDest, nYDest, nWDest, nHDest, hdcSrc, nXSrc, nYSrc, nWidth, nHeight, dwRop);
 						break;
 					case 2: // screen to memory
-						// v2.06.13 fix:
-						//dxw.MapClient(&nXSrc, &nYSrc, &nWidth, &nHeight);
-						dxw.UnmapClient(&nXDest, &nYDest, &nWDest, &nHDest);
-						res=(*pGDIStretchBlt)(hdcDest, nXDest, nYDest, nWDest, nHDest, hdcSrc, nXSrc, nYSrc, nWidth, nHeight, dwRop);
+						// v2.06.15 fix:
+						saveX = nXSrc;
+						saveY = nYSrc;
+						saveW = nWidth;
+						saveH = nHeight;
+						dxw.MapClient(&nXSrc, &nYSrc, &nWidth, &nHeight);
+						res=(*pGDIStretchBlt)(hdcDest, nXDest, nYDest, saveW, saveH, hdcSrc, nXSrc, nYSrc, nWidth, nHeight, dwRop);
 						break;
 					default:
 						// v2.04.32: avoid StretchBlt for intra-memory or intra-video operations!
@@ -1792,6 +1777,25 @@ BOOL WINAPI extGDIBitBlt(HDC hdcDest, int nXDest, int nYDest, int nWidth, int nH
 				}
 			    res=(*pGDIBitBlt)(hdcDest, nXDest, nYDest, nWidth, nHeight, hdcSrc, nXSrc, nYSrc, dwRop);
 				OutDebugDW("%s: DEBUG emulated hdc dest=%#x->%#x\n", ApiRef, dxw.RealHDC, hdcDest);
+				break;
+			case GDIMODE_SHAREDDC:
+				switch(Flux){
+					case 0: // memory to memory
+						res=(*pGDIBitBlt)(hdcDest, nXDest, nYDest, nWidth, nHeight, hdcSrc, nXSrc, nYSrc, dwRop);
+						break;
+					case 1: // memory to screen
+					case 3: // screen to screen
+						sdc.SetOrigin(nXSrc, nYSrc);
+						sdc.GetPrimaryDC(hdcDest, hdcSrc);
+						res=(*pGDIBitBlt)(sdc.GetHdc(), nXDest, nYDest, nWidth, nHeight, hdcSrc, nXSrc, nYSrc, dwRop);
+						sdc.PutPrimaryDC(hdcDest, TRUE, nXDest, nYDest, nWidth, nHeight);
+						break;
+					case 2: // screen to memory
+						sdc.GetPrimaryDC(hdcSrc);
+						res=(*pGDIBitBlt)(hdcDest, nXDest, nYDest, nWidth, nHeight, sdc.GetHdc(), nXSrc, nYSrc, dwRop);
+						sdc.PutPrimaryDC(hdcSrc, TRUE, nXDest, nYDest, nWidth, nHeight);
+						break;
+				}
 				break;
 			default:
 				res=(*pGDIBitBlt)(hdcDest, nXDest, nYDest, nWidth, nHeight, hdcSrc, nXSrc, nYSrc, dwRop);
@@ -2791,6 +2795,11 @@ int WINAPI extStretchDIBits(HDC hdc, int XDest, int YDest, int nDestWidth, int n
 		TraceBITMAPINFOHEADER(ApiRef, (BITMAPINFOHEADER *)&(lpBitsInfo->bmiHeader));
 	}
 #endif
+
+	if(dxw.dwFlags20 & FIXGNOMEMOVIES){
+		if(XDest & 0x00008000) XDest |= 0xFFFF0000;
+		if(YDest & 0x00008000) YDest |= 0xFFFF0000;
+	}
 
 	if(dxw.IsToRemap(hdc)){
 		dxw.HandleDIB(); // handle refresh delays

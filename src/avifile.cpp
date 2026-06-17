@@ -642,13 +642,21 @@ HRESULT WINAPI extSetFormat(void *h, LPBITMAPINFOHEADER lpbi, LPVOID lpBits, INT
 	ApiName("SetFormat");
 	OutTraceSYS("%s: h=%#x lpbi=%#x lpBits=%#x x=%d y=%d dx=%d dy=%d\n", ApiRef, h, lpbi, lpBits, x, y, dx, dy);
 	if(IsTraceSYS){
-		OutTrace("> size=(%dx%d)\n", lpbi->biWidth, lpbi->biHeight);
-		OutTrace("> planes=%d\n", lpbi->biPlanes);
-		OutTrace("> bitcount=%d\n", lpbi->biBitCount);
-		OutTrace("> compression=%#x(%s)\n", lpbi->biCompression, sFourCC(lpbi->biCompression));
-		OutTrace("> sizeimage=%d\n", lpbi->biSizeImage);
-		OutTrace("> pixelxmeter=(%dx%d)\n", lpbi->biXPelsPerMeter, lpbi->biYPelsPerMeter);
-		OutTrace("> colors(used/imp)=%d/%d\n", lpbi->biClrUsed, lpbi->biClrImportant);
+		switch((DWORD)lpbi){
+			case 0:
+			case 1:
+				OutTrace("> lpbi=%d\n", lpbi);
+				break;
+			default:
+				OutTrace("> size=(%dx%d)\n", lpbi->biWidth, lpbi->biHeight);
+				OutTrace("> planes=%d\n", lpbi->biPlanes);
+				OutTrace("> bitcount=%d\n", lpbi->biBitCount);
+				OutTrace("> compression=%#x(%s)\n", lpbi->biCompression, sFourCC(lpbi->biCompression));
+				OutTrace("> sizeimage=%d\n", lpbi->biSizeImage);
+				OutTrace("> pixelxmeter=(%dx%d)\n", lpbi->biXPelsPerMeter, lpbi->biYPelsPerMeter);
+				OutTrace("> colors(used/imp)=%d/%d\n", lpbi->biClrUsed, lpbi->biClrImportant);
+				break;
+		}
 	}
 	res=(*pSetFormat)(h, lpbi, lpBits, x, y, dx, dy);
 	OutTraceSYS("%s: res=%#x\n", ApiRef, res);

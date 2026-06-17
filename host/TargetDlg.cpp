@@ -750,6 +750,7 @@ void CTargetDlg::InitializeDefaults()
 	m_SuppressBltFX = FALSE;
 	m_FindCloseCheck = FALSE;
 	m_AddSharedDirPath = FALSE;
+	m_FixGNomeMovies = FALSE;
 	m_SetResolution = FALSE;
 	m_DIBPalette = FALSE;
 	m_ClipperMode = 0;

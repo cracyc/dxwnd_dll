@@ -688,10 +688,12 @@ void WINAPI extSmackSoundCheck(void)
 
 void WINAPI extSmackToBuffer(Smack *h, u32 left, u32 top, u32 Pitch, u32 destheight, const void *buf, u32 Flags)
 {
-	OutTraceDW("SmackToBuffer: h=%#x left=%d top=%d pitch=%d heigth=%d buf=%#x flags=%#x\n", h, left, top, Pitch, destheight, buf, Flags);
+	ApiName("SmackToBuffer");
+	OutTraceDW("%s: h=%#x left=%d top=%d pitch=%d heigth=%d buf=%#x flags=%#x\n", 
+		ApiRef, h, left, top, Pitch, destheight, buf, Flags);
 	DumpSmack(h);
 	if(dxw.dwFlags11 & SMACKBUFFERNODEPTH) Flags &= ~SMACKBUFFER16; // clear first 2 bits
-	return (*pSmackToBuffer)(h, left, top, Pitch, destheight, buf, Flags);
+	(*pSmackToBuffer)(h, left, top, Pitch, destheight, buf, Flags);
 }
 
 #ifdef SMACK_TRACEALL
@@ -862,10 +864,12 @@ void WINAPIV extSmackCloseC(Smack *h)
 
 void WINAPIV extSmackToBufferC(Smack *h, u32 left, u32 top, u32 Pitch, u32 destheight, const void *buf, u32 Flags)
 {
-	OutTraceDW("SmackToBuffer: h=%#x left=%d top=%d pitch=%d heigth=%d buf=%#x flags=%#x\n", h, left, top, Pitch, destheight, buf, Flags);
+	ApiName("SmackToBuffer");
+	OutTraceDW("%s: h=%#x left=%d top=%d pitch=%d heigth=%d buf=%#x flags=%#x\n", 
+		ApiRef, h, left, top, Pitch, destheight, buf, Flags);
 	DumpSmack(h);
 	if(dxw.dwFlags11 & SMACKBUFFERNODEPTH) Flags &= ~SMACKBUFFER16; // clear first 2 bits
-	return (*pSmackToBufferC)(h, left, top, Pitch, destheight, buf, Flags);
+	(*pSmackToBufferC)(h, left, top, Pitch, destheight, buf, Flags);
 }
 
 Smack * WINAPIV extSmackDoFrameC(Smack *h)
