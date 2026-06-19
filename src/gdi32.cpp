@@ -384,11 +384,13 @@ static HookEntryEx_Type Hooks[]={
  
 static HookEntryEx_Type RemapHooks[]={
 	{HOOK_IAT_CANDIDATE, 0, "SetViewportOrgEx", (FARPROC)SetViewportOrgEx, (FARPROC *)&pSetViewportOrgEx, (FARPROC)extSetViewportOrgEx}, // needed in ShowBanner
+	{HOOK_IAT_CANDIDATE, 0, "OffsetViewportOrgEx", (FARPROC)OffsetViewportOrgEx, (FARPROC *)&pOffsetViewportOrgEx, (FARPROC)extOffsetViewportOrgEx}, // needed in ShowBanner
 	{HOOK_IAT_CANDIDATE, 0, "SetViewportExtEx", (FARPROC)SetViewportExtEx, (FARPROC *)&pSetViewportExtEx, (FARPROC)extSetViewportExtEx},
 	{HOOK_IAT_CANDIDATE, 0, "GetViewportOrgEx", (FARPROC)GetViewportOrgEx, (FARPROC *)&pGetViewportOrgEx, (FARPROC)extGetViewportOrgEx},
 	{HOOK_IAT_CANDIDATE, 0, "GetViewportExtEx", (FARPROC)GetViewportExtEx, (FARPROC *)&pGetViewportExtEx, (FARPROC)extGetViewportExtEx},
 	{HOOK_IAT_CANDIDATE, 0, "GetWindowOrgEx", (FARPROC)GetWindowOrgEx, (FARPROC *)&pGetWindowOrgEx, (FARPROC)extGetWindowOrgEx},
 	{HOOK_IAT_CANDIDATE, 0, "SetWindowOrgEx", (FARPROC)SetWindowOrgEx, (FARPROC *)&pSetWindowOrgEx, (FARPROC)extSetWindowOrgEx},
+	{HOOK_IAT_CANDIDATE, 0, "OffsetWindowOrgEx", (FARPROC)OffsetWindowOrgEx, (FARPROC *)&pOffsetWindowOrgEx, (FARPROC)extOffsetWindowOrgEx},
 	{HOOK_HOT_CANDIDATE, 0, "GetWindowExtEx", (FARPROC)GetWindowExtEx, (FARPROC *)&pGetWindowExtEx, (FARPROC)extGetWindowExtEx},
 	{HOOK_IAT_CANDIDATE, 0, "SetWindowExtEx", (FARPROC)SetWindowExtEx, (FARPROC *)&pSetWindowExtEx, (FARPROC)extSetWindowExtEx},
 	{HOOK_IAT_CANDIDATE, 0, "SetBrushOrgEx", (FARPROC)SetBrushOrgEx, (FARPROC *)&pSetBrushOrgEx, (FARPROC)extSetBrushOrgEx},
@@ -1277,7 +1279,8 @@ BOOL WINAPI extAnimatePalette(HPALETTE hpal, UINT iStartIndex, UINT cEntries, co
 	OutTraceGDI("%s: hpal=%#x startindex=%d entries=%d\n", ApiRef, hpal, iStartIndex, cEntries);
 	if(IsDebugGDI) dxw.DumpPalette(cEntries, (LPPALETTEENTRY)ppe+iStartIndex);
 
-	ret=(*pAnimatePalette)(hpal, iStartIndex, cEntries, ppe);
+	if(dxw.dwFlags20 & NOPALETTEANIMATION) return TRUE; // v2.06.15: fix for @#@ "G-Nome"
+	else ret=(*pAnimatePalette)(hpal, iStartIndex, cEntries, ppe);
 
 	if(dxw.IsEmulated && (dxw.dwFlags6 & SYNCPALETTE) && (hpal == hLastRealizedPalette)){
 		PALETTEENTRY PalEntries[256];
@@ -1288,6 +1291,7 @@ BOOL WINAPI extAnimatePalette(HPALETTE hpal, UINT iStartIndex, UINT cEntries, co
 		ret=cEntries;
 
 		if(dxw.IsFullScreen() && (dxw.dwFlags3 & REFRESHONREALIZE)){
+			// dxw.RefreshOnRealize(); ???
 			HWND hwnd = dxw.GethWnd();
 			if(!dxw.IsRealDesktop(hwnd)){
 				(*pRedrawWindow)(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_NOFRAME);
@@ -1351,6 +1355,8 @@ UINT WINAPI extGetSystemPaletteEntries(HDC hdc, UINT iStartIndex, UINT nEntries,
 	OutTraceGDI("%s: hdc=%#x start=%d num=%d\n", ApiRef, hdc, iStartIndex, nEntries);
 	ret=(*pGDIGetSystemPaletteEntries)(hdc, iStartIndex, nEntries, lppe);
 	OutTraceGDI("%s: ret=%d\n", ApiRef, ret);
+	if(dxw.isWineControlled) return ret;
+
 	if((ret == 0) && (dxw.IsEmulated) && (dxw.dwFlags6 & SYNCPALETTE)) {
 		// use static default data...
 		for(UINT idx=0; idx<nEntries; idx++) lppe[idx]=DefaultSystemPalette[iStartIndex+idx]; 
