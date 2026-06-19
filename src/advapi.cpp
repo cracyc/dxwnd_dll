@@ -889,7 +889,8 @@ LONG WINAPI extRegQueryValueExA(
 
 LONG WINAPI extRegCloseKey(HKEY hKey)
 {
-	OutTraceR("RegCloseKey: hKey=%#x\n", hKey);
+	ApiName("RegCloseKey");
+	OutTraceR("%s: hKey=%#x\n", ApiRef, hKey);
 	if (IsFake(hKey)) return ERROR_SUCCESS;
 	return (*pRegCloseKey)(hKey);
 }
