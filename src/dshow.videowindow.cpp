@@ -447,10 +447,40 @@ HRESULT STDMETHODCALLTYPE dxwVideoWindow::get_MessageDrain(OAHWND *Drain)
 #endif
 
 HRESULT STDMETHODCALLTYPE dxwVideoWindow::get_BorderColor(long *Color)
+#ifdef BYPASS
 {return m_this->get_BorderColor(Color); }
+#else
+{
+	ApiName("get_BorderColor");
+	HRESULT res;
+	OutTraceDSHOW("%s: obj=%#x\n", ApiRef, m_this);
+	res = m_this->get_BorderColor(Color); 
+	if(res){
+		OutTraceDSHOW("%s: ERROR obj=%#x res=%#x\n", ApiRef, m_this, res);
+	} else {
+		OutTraceDSHOW("%s: OK color=%#x\n", ApiRef, m_this, *Color);
+	}
+	return res;
+}
+#endif
 
 HRESULT STDMETHODCALLTYPE dxwVideoWindow::put_BorderColor(long Color)
+#ifdef BYPASS
 {return m_this->put_BorderColor(Color); }
+#else
+{
+	ApiName("put_BorderColor");
+	HRESULT res;
+	OutTraceDSHOW("%s: obj=%#x color=%#x\n", ApiRef, m_this, Color);
+	res = m_this->put_BorderColor(Color); 
+	if(res){
+		OutTraceDSHOW("%s: ERROR obj=%#x res=%#x\n", ApiRef, m_this, res);
+	} else {
+		OutTraceDSHOW("%s: OK\n", ApiRef, m_this);
+	}
+	return res;
+}
+#endif
 
 HRESULT STDMETHODCALLTYPE dxwVideoWindow::get_FullScreenMode(long *FullScreenMode)
 {
@@ -475,9 +505,10 @@ HRESULT STDMETHODCALLTYPE dxwVideoWindow::put_FullScreenMode(long FullScreenMode
 	HRESULT res;
 	OutTraceDSHOW("%s: obj=%#x fullscreenmode=%#x\n", ApiRef, m_this, FullScreenMode);
 #ifdef DSHOWHACKS
-	if(dxw.Windowize && FullScreenMode){
+	if(dxw.Windowize && dxw.IsFullScreen()){
 		OutTraceDSHOW("%s: set fullscreen OFF\n", ApiRef);
-		FullScreenMode = OAFALSE;
+		res = m_this->put_FullScreenMode(OAFALSE);
+		return S_OK;
 	}
 #endif
 	res = m_this->put_FullScreenMode(FullScreenMode);

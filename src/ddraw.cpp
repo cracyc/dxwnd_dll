@@ -2463,6 +2463,17 @@ static HRESULT WINAPI extGetCapsD(ApiArg, int dxversion, GetCapsD_Type pGetCapsD
 		}
 	}
 
+	if(dxw.dwFlags20 & FORCENOPAGELOCK) {
+		if(c1) {
+			c1->dwCaps2 |= DDCAPS2_NOPAGELOCKREQUIRED;
+			c1Updated = TRUE;
+		}
+		if(c2) {
+			c2->dwCaps2 |= DDCAPS2_NOPAGELOCKREQUIRED;
+			c2Updated = TRUE;
+		}
+	}
+
 #ifndef DXW_NOTRACES
 	if (c1 && c1Updated) TraceCapsD("Upd.D-HW", c1);
 	if (c2 && c2Updated) TraceCapsD("Upd.D-SW", c2);

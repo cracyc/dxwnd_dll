@@ -2499,30 +2499,50 @@ static void FixMessageLParam(ApiArg, LPMSG lpMsg, LPPOINT lpPoint)
 	}
 }
 
-static BOOL WINAPI extPeekMessage(char *api, PeekMessage_Type pPeekMessage, LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
+static BOOL WINAPI extPeekMessage(char *api, PeekMessage_Type pPeekMessage, BOOL isAnsi, LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
 	BOOL res;
-	char *sLabel;
+	char *sLabel = "";
 
-	if(dxw.dwFlags3 & PEEKALLMESSAGES){
-		sLabel="(ANY) ";
-		if((wMsgFilterMin==0) && (wMsgFilterMax == 0)){
-			// no filtering, everything is good
-			res=(*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, (wRemoveMsg & 0x000F));
+	if(dxw.dwFlags20 & FILTERADAPTERWCLASS) {
+		WCHAR buffer[256];
+		//const MSG origMsg = lpMsg ? *lpMsg : MSG{};
+		MSG origMsg;
+		if(lpMsg) memcpy(&origMsg, lpMsg, sizeof(MSG));
+		else memset(&origMsg, 0, sizeof(MSG));
+		res=(*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
+		int len = GetClassNameW(lpMsg->hwnd, buffer, sizeof(buffer));
+		while (((len == 22) && !wcscmp( buffer, L"UserAdapterWindowClass" )) ||
+			   ((len == 28) && !wcscmp( buffer, L"SystemUserAdapterWindowClass" ))) {
+				   OutTraceW("%s: skip %sUserAdapterWindowClass message\n", ApiRef, len == 28 ? "System" : "");
+			if(!(wRemoveMsg & 0x000F)) (*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE);
+			TranslateMessage(lpMsg);
+			isAnsi ? DispatchMessageA(lpMsg) : DispatchMessageW(lpMsg);
+			*lpMsg = origMsg;
+			res=(*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
+			len = GetClassNameW(lpMsg->hwnd, buffer, sizeof(buffer));
 		}
-		else {
-			MSG Dummy;
-			// better eliminate all messages before and after the selected range !!!!
-			//if(wMsgFilterMin)(*pPeekMessage)(&Dummy, hwnd, 0, wMsgFilterMin-1, TRUE);
-			if(wMsgFilterMin>0x0F)(*pPeekMessage)(&Dummy, hwnd, 0x0F, wMsgFilterMin-1, TRUE);
-			res=(*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, (wRemoveMsg & 0x000F));
-			if(wMsgFilterMax<WM_KEYFIRST)(*pPeekMessage)(&Dummy, hwnd, wMsgFilterMax+1, WM_KEYFIRST-1, TRUE); // don't touch above WM_KEYFIRST !!!!
-		}
-
 	}
 	else {
-		sLabel="";
-		res=(*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, (wRemoveMsg & 0x000F));
+		if(dxw.dwFlags3 & PEEKALLMESSAGES){
+			sLabel="(ANY) ";
+			if((wMsgFilterMin==0) && (wMsgFilterMax == 0)){
+				// no filtering, everything is good
+				res=(*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, (wRemoveMsg & 0x000F));
+			}
+			else {
+				MSG Dummy;
+				// better eliminate all messages before and after the selected range !!!!
+				//if(wMsgFilterMin)(*pPeekMessage)(&Dummy, hwnd, 0, wMsgFilterMin-1, TRUE);
+				if(wMsgFilterMin>0x0F)(*pPeekMessage)(&Dummy, hwnd, 0x0F, wMsgFilterMin-1, TRUE);
+				res=(*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, (wRemoveMsg & 0x000F));
+				if(wMsgFilterMax<WM_KEYFIRST)(*pPeekMessage)(&Dummy, hwnd, wMsgFilterMax+1, WM_KEYFIRST-1, TRUE); // don't touch above WM_KEYFIRST !!!!
+			}
+
+		}
+		else {
+			res=(*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, (wRemoveMsg & 0x000F));
+		}
 	}
 #ifndef DXW_NOTRACES
 	if(IsTraceW || IsTraceC)  {
@@ -2599,9 +2619,9 @@ static BOOL WINAPI extPeekMessage(char *api, PeekMessage_Type pPeekMessage, LPMS
 }
 
 BOOL WINAPI extPeekMessageA(LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
-{ ApiName("PeekMessageA"); return extPeekMessage(ApiRef, pPeekMessageA, lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg); }
+{ ApiName("PeekMessageA"); return extPeekMessage(ApiRef, pPeekMessageA, TRUE, lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg); }
 BOOL WINAPI extPeekMessageW(LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
-{ ApiName("PeekMessageW"); return extPeekMessage(ApiRef, pPeekMessageW, lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg); }
+{ ApiName("PeekMessageW"); return extPeekMessage(ApiRef, pPeekMessageW, FALSE, lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg); }
 
 static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, BOOL isAnsi, LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax){
 	BOOL res;
@@ -2627,6 +2647,25 @@ static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, BOOL isAns
 			lpMsg->message = 0;
 			res = 1;
 			break;
+		}
+	}
+
+	if(dxw.dwFlags20 & FILTERADAPTERWCLASS) { // to be tested !!!
+		WCHAR buffer[256];
+		MSG origMsg;
+		if(lpMsg) memcpy(&origMsg, lpMsg, sizeof(MSG));
+		else memset(&origMsg, 0, sizeof(MSG));
+		int len = GetClassNameW(lpMsg->hwnd, buffer, sizeof(buffer));
+		while (((len == 22) && !wcscmp( buffer, L"UserAdapterWindowClass" )) ||
+			   ((len == 28) && !wcscmp( buffer, L"SystemUserAdapterWindowClass" ))) {
+				   OutTraceW("%s: skip %sUserAdapterWindowClass message\n", ApiRef, len == 28 ? "System" : "");
+			PeekMessage_Type pPeekMessage = isAnsi ? pPeekMessageA : pPeekMessageW;
+			//(*pPeekMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE);
+			TranslateMessage(lpMsg);
+			isAnsi ? DispatchMessageA(lpMsg) : DispatchMessageW(lpMsg);
+			*lpMsg = origMsg;
+			res=(*pGetMessage)(lpMsg, hwnd, wMsgFilterMin, wMsgFilterMax);
+			len = GetClassNameW(lpMsg->hwnd, buffer, sizeof(buffer));
 		}
 	}
 

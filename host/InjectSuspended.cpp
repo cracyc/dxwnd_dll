@@ -207,7 +207,9 @@ void InjectSuspended(char *exepath, char *dirpath, BOOL bSuspended, BOOL bCommit
 						MB_ICONEXCLAMATION | MB_OKCANCEL, NULL);
 					if (IDCANCEL == nMBResult){
 						OutTrace("Awaiting of injection completion abandoned\n");
-						break;
+						TerminateProcess(TargetHandle, 1);
+						CloseHandle(TargetHandle);
+						return;
 					}
 				}
 			}

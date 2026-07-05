@@ -427,6 +427,7 @@ void CTargetDlg::InitializeDefaults()
 	m_SwallowMouseMove = FALSE;
 	m_UnnotifyInactive = FALSE;
 	m_GetAllMessages = FALSE;
+	m_FilterAdapterWClass = FALSE;
 	m_MouseMoveByEvent = FALSE;
 	m_NoBanner = FALSE;
 	m_FilePath = _T("");
@@ -751,6 +752,8 @@ void CTargetDlg::InitializeDefaults()
 	m_FindCloseCheck = FALSE;
 	m_AddSharedDirPath = FALSE;
 	m_FixGNomeMovies = FALSE;
+	m_NoPaletteAnimation = FALSE;
+	m_ForceNoPageLock = FALSE;
 	m_SetResolution = FALSE;
 	m_DIBPalette = FALSE;
 	m_ClipperMode = 0;

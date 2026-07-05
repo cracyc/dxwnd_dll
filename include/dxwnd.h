@@ -683,6 +683,9 @@
 #define FINDCLOSECHECK		0x00000800 // enables a check for FindClose with wrong arguments (needed for "iM1A2 Abrams")
 #define ADDSHAREDDIRPATH	0x00001000 // adds the DxWnd\shared folder to the libraries search path
 #define FIXGNOMEMOVIES		0x00002000 // recovers the truncated negative coordinates in G-Nome movies
+#define FILTERADAPTERWCLASS	0x00004000
+#define NOPALETTEANIMATION	0x00008000
+#define FORCENOPAGELOCK		0x00010000
 
 // debug Dflags DWORD:
 #define CPUVENDORMASK		0x00000007

@@ -148,6 +148,7 @@ public:
 	BOOL	m_SwallowMouseMove;
 	BOOL	m_UnnotifyInactive;
 	BOOL	m_GetAllMessages;
+	BOOL	m_FilterAdapterWClass;
 	BOOL	m_MouseMoveByEvent;
 	BOOL	m_NoBanner;
 	int		m_InjectionMode;
@@ -676,6 +677,8 @@ public:
 	BOOL	m_FindCloseCheck;
 	BOOL	m_AddSharedDirPath;
 	BOOL	m_FixGNomeMovies;
+	BOOL	m_NoPaletteAnimation;
+	BOOL	m_ForceNoPageLock;
 	BOOL	m_SetResolution;
 	BOOL	m_DIBPalette;
 	int		m_ZBufferMode;

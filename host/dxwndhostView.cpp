@@ -496,6 +496,7 @@ void SetTargetFromDlg(TARGETMAP *t, CTargetDlg *dlg)
 	if(dlg->m_SetZBuffer16Bit) t->flags3 |= SETZBUFFER16BIT;
 	if(dlg->m_SetZBuffer24Bit) t->flags3 |= SETZBUFFER24BIT;
 	if(dlg->m_GetAllMessages) t->flags20 |= GETALLMESSAGES;
+	if(dlg->m_FilterAdapterWClass) t->flags20 |= FILTERADAPTERWCLASS;
 
 	if(!dlg->m_EarlyHook) dlg->m_InjectionMode = 0;
 	switch(dlg->m_InjectionMode){
@@ -1302,6 +1303,8 @@ void SetTargetFromDlg(TARGETMAP *t, CTargetDlg *dlg)
 	if(dlg->m_FindCloseCheck) t->flags20 |= FINDCLOSECHECK;
 	if(dlg->m_AddSharedDirPath) t->flags20 |= ADDSHAREDDIRPATH;
 	if(dlg->m_FixGNomeMovies) t->flags20 |= FIXGNOMEMOVIES;
+	if(dlg->m_NoPaletteAnimation) t->flags20 |= NOPALETTEANIMATION;
+	if(dlg->m_ForceNoPageLock) t->flags20 |= FORCENOPAGELOCK;
 	if(dlg->m_SetResolution) t->flags19 |= SETRESOLUTION;
 
 	if(dlg->m_DIBPalette) t->flags19 |= DIBPALETTE;
@@ -1468,6 +1471,7 @@ static void SetDlgFromTarget(TARGETMAP *t, CTargetDlg *dlg)
 	dlg->m_SetZBuffer16Bit = t->flags3 & SETZBUFFER16BIT ? 1 : 0;
 	dlg->m_SetZBuffer24Bit = t->flags3 & SETZBUFFER24BIT ? 1 : 0;
 	dlg->m_GetAllMessages = t->flags20 & GETALLMESSAGES ? 1 : 0;
+	dlg->m_FilterAdapterWClass = t->flags20 & FILTERADAPTERWCLASS ? 1 : 0;
 
 	dlg->m_InjectionMode = 0; 
 	if(t->flags2  & STARTDEBUG) dlg->m_InjectionMode = 1;
@@ -2143,6 +2147,8 @@ static void SetDlgFromTarget(TARGETMAP *t, CTargetDlg *dlg)
 	dlg->m_FindCloseCheck = t->flags20 & FINDCLOSECHECK ? 1 : 0;
 	dlg->m_AddSharedDirPath = t->flags20 & ADDSHAREDDIRPATH ? 1 : 0;
 	dlg->m_FixGNomeMovies = t->flags20 & FIXGNOMEMOVIES ? 1 : 0;
+	dlg->m_NoPaletteAnimation = t->flags20 & NOPALETTEANIMATION ? 1 : 0;
+	dlg->m_ForceNoPageLock = t->flags20 & FORCENOPAGELOCK ? 1 : 0;
 	dlg->m_SetResolution = t->flags19 & SETRESOLUTION ? 1 : 0;
 	dlg->m_DIBPalette = t->flags19 & DIBPALETTE ? 1 : 0;
 	dlg->m_PosX = t->posx;
@@ -5865,6 +5871,36 @@ void ClearShims(char *path)
 	ClearShimsExt(path, HKEY_LOCAL_MACHINE, "HKEY_LOCAL_MACHINE", "Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Compatibility Assistant\\Store");
 }
 
+LPCWSTR Ascii2Wide(LPCSTR lpstr)
+{
+	if(!lpstr) return NULL;
+	int size = strlen(lpstr);
+	if(size == 0) return NULL;
+	WCHAR *lpstrW = (WCHAR *)malloc((size + 1) * sizeof(WCHAR));
+	int n = MultiByteToWideChar(0, MB_PRECOMPOSED , lpstr, size, lpstrW, size);
+	if(n == 0) OutTrace("Ascii2Wide str=\"%s\" size=%d n=%d error=%d\n", lpstr, size, n, GetLastError());
+	lpstrW[n] = L'\0'; // make tail ! 
+	return lpstrW;
+}
+
+void SetWineShims(char *path, TARGETMAP *t)
+{
+	if(t->flags2 & INIT8BPP) {
+		OutTrace("Setting 256COLOR key in registry for %s\n", path);
+		HKEY hKey;
+		LSTATUS stat = RegOpenKeyA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers", &hKey);
+		if(stat != ERROR_SUCCESS) OutTrace("RegOpenKeyA ERROR ret=%d\n", stat);
+		OutTrace("hkey=%#x\n", hKey);
+		WCHAR *wData = L"~ 256COLOR";
+		stat = RegSetKeyValueW(hKey, NULL, Ascii2Wide(path), REG_SZ, wData, 20);
+		if(stat != ERROR_SUCCESS) OutTrace("RegSetKeyValueA ERROR ret=%d\n", stat);
+		stat = RegFlushKey(hKey);
+		if(stat != ERROR_SUCCESS) OutTrace("RegFlushKey ERROR ret=%d\n", stat);
+		RegCloseKey(hKey);
+	}
+	// for 16 bit colors the key data would be L"~ 16BITCOLOR"
+}
+
 void RunTarget(int runmode, int i, TARGETMAP *tm, PRIVATEMAP *pm, TARGETMAP *TargetMaps)
 {
 	STARTUPINFO sinfo;
@@ -5929,6 +5965,8 @@ void RunTarget(int runmode, int i, TARGETMAP *tm, PRIVATEMAP *pm, TARGETMAP *Tar
 		extern char *GetDxWndPath();
 		TARGETMAP *t = &RestrictedMaps[0];
 		char newTarget[MAX_PATH+1];
+		//------- otvdmw shim
+		SetWineShims(t->path, t);
 		_snprintf(newTarget, MAX_PATH, "%swinevdm\\otvdmw.exe", GetDxWndPath());
 		OutTrace("newTarget=%s\n", newTarget);
 		strcpy(t->path, newTarget);
