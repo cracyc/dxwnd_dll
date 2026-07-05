@@ -212,6 +212,8 @@ BOOL CTabTweaks::OnInitDialog()
 		{ "FINDCLOSECHECK",		"patch:FindCloseCheck", 0, offset(m_FindCloseCheck) },
 		{ "ADDSHAREDDIRPATH",	"win:AddSharedDirPath", 0, offset(m_AddSharedDirPath) },
 		{ "FIXGNOMEMOVIES",		"patch:FixG-NomeMovies", 0, offset(m_FixGNomeMovies) },
+		{ "NOPALETTEANIMATION",	"patch:NoPaletteAnimation", 0, offset(m_NoPaletteAnimation) },
+		{ "FORCENOPAGELOCK",	"ddraw:ForceNoPageLock", 0, offset(m_ForceNoPageLock) },
 		{ NULL, NULL, NULL, NULL }  
 	};
 	// build the tweaks category list

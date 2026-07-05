@@ -49,6 +49,7 @@ void CTabMsgs::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_SWALLOWMOUSEMOVE, cTarget->m_SwallowMouseMove);
 	DDX_Check(pDX, IDC_UNNOTIFYINACTIVE, cTarget->m_UnnotifyInactive);
 	DDX_Check(pDX, IDC_GETALLMESSAGES, cTarget->m_GetAllMessages);
+	DDX_Check(pDX, IDC_FILTERADAPTERWCLASS, cTarget->m_FilterAdapterWClass);
 }
 
 BEGIN_MESSAGE_MAP(CTabMsgs, CDialog)
