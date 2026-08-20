@@ -409,6 +409,7 @@ static HookEntryEx_Type SyscallHooks[]={
 	{HOOK_IAT_CANDIDATE, 0, "CreateDIBitmap", (FARPROC)CreateDIBitmap, (FARPROC *)&pCreateDIBitmap, (FARPROC)extCreateDIBitmap}, 
 	{HOOK_HOT_CANDIDATE, 0, "CreateDIBSection", (FARPROC)CreateDIBSection, (FARPROC *)&pCreateDIBSection, (FARPROC)extCreateDIBSection}, 
 	{HOOK_IAT_CANDIDATE, 0, "CreateDiscardableBitmap", (FARPROC)NULL, (FARPROC *)&pCreateDiscardableBitmap, (FARPROC)extCreateDiscardableBitmap}, 
+	{HOOK_IAT_CANDIDATE, 0, "FloodFill", (FARPROC)NULL, (FARPROC *)&pFloodFill, (FARPROC)extFloodFill}, 
 	{HOOK_IAT_CANDIDATE, 0, "ExtFloodFill", (FARPROC)NULL, (FARPROC *)&pExtFloodFill, (FARPROC)extExtFloodFill}, 
 	{HOOK_IAT_CANDIDATE, 0, "GdiAlphaBlend", (FARPROC)NULL, (FARPROC *)&pGdiAlphaBlend, (FARPROC)extGdiAlphaBlend}, 
 	{HOOK_IAT_CANDIDATE, 0, "GdiGradientFill", (FARPROC)NULL, (FARPROC *)&pGdiGradientFill, (FARPROC)extGdiGradientFill},
@@ -3229,33 +3230,6 @@ HBITMAP WINAPI extCreateCompatibleBitmap(HDC hdc, int nWidth, int nHeight)
 	HBITMAP ret;
 	ApiName("CreateCompatibleBitmap");
 	OutTraceGDI("%s: hdc=%#x size=(%d,%d)\n", ApiRef, hdc, nWidth, nHeight);
-
-	if (dxw.IsToRemap(hdc)){
-		switch(dxw.GDIEmulationMode){
-			case GDIMODE_SHAREDDC: 
-				sdc.GetPrimaryDC(hdc);
-				ret=(*pCreateCompatibleBitmap)(sdc.GetHdc(), nWidth, nHeight);
-				sdc.PutPrimaryDC(hdc, FALSE);
-#ifndef DXW_NOTRACES
-				if(ret) {
-					OutTraceGDI("%s: hbitmap=%#x\n", ApiRef, ret); 
-				} else {
-					OutErrorGDI("%s: ERROR ret=%#x err=%d\n", ApiRef, ret, GetLastError()); 
-				}
-#endif // DXW_NOTRACES
-				return ret;
-				break;
-			case GDIMODE_STRETCHED:
-				// v2.05.69: commented out, the compatible bitmap should not be stretched at this time
-				// because it should be stretched later when going to video DC, or not stretched at all
-				// if used to build a custom cursor (see "Julia Szalone Lata 20.!"
-				//dxw.MapClient(&nWidth, &nHeight);
-				//OutTraceGDI("%s: fixed size=(%d,%d)\n", ApiRef, nWidth, nHeight);
-				break;
-			default:
-				break;
-		}
-	}
 
 	if(dxw.dwFlags13 & FIXDCCOLORDEPTH){
 		HWND hwnd = WindowFromDC(hdc);

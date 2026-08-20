@@ -753,6 +753,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\kernel32.profiles.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\locale.cpp"
 				>
 			</File>
@@ -1099,6 +1103,10 @@
 			</File>
 			<File
 				RelativePath=".\injector32.h"
+				>
+			</File>
+			<File
+				RelativePath=".\kernel32.profiles.h"
 				>
 			</File>
 			<File

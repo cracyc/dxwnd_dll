@@ -4492,6 +4492,12 @@ HRESULT WINAPI extBlt(ApiArg, int dxversion, Blt_Type pBlt, LPDIRECTDRAWSURFACE 
 	}
 #endif // DXW_NOTRACES
 
+	if(dxw.dwDFlags2 & EXPERIMENTAL3) {
+		if(lpddbltfx->dwFillColor == 0xb7) lpddbltfx->dwFillColor = 0x59;
+		if(lpddbltfx->dwFillColor == 0x11) lpddbltfx->dwFillColor = 0xb6;
+		if(lpddbltfx->dwFillColor == 0x96) lpddbltfx->dwFillColor = 0xa3;	
+	}
+
 	if((dxw.dwDFlags2 & (FORCEXMIRRORING|FORCEYMIRRORING)) && (lpddssrc != 0)){
 		memset(&ddbltfx, 0, sizeof(DDBLTFX));
 		ddbltfx.dwSize = sizeof(DDBLTFX);

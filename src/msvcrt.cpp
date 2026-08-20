@@ -87,7 +87,7 @@ errno_t CDECL ext_waccess_s(const wchar_t *, int);
 
 #ifdef TRACEALL
 typedef errno_t (CDECL *_chdrive_Type)(int);
-_chdrive_Type *p_chdrive;
+_chdrive_Type p_chdrive;
 errno_t CDECL ext_chdrive(int);
 
 typedef int (CDECL *_getdrive_Type)(void);
@@ -540,14 +540,14 @@ errno_t CDECL ext_chdrive(int drive)
 {
 	ApiName("_chdrive");
 	errno_t ret;
-	OutTraceSYS("%s: drive=%d(%c)\n", ApiRef, drive, 'A'+drive);
+	OutTraceSYS("%s: drive=%d(%c)\n", ApiRef, drive, 'A'+(drive-1));
 	//if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
 	//	DWORD mapping;
 	//	path = dxwTranslatePathW(path, &mapping);
 	//	if(mapping != DXW_NO_FAKE) OutTraceSYS("%s: REMAP path=\"%ls\"\n", ApiRef, path);
 	//}
 	ret=(*p_chdrive)(drive);
-	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
+	OutTraceSYS("%s: ret=%#x(%s)\n", ApiRef, ret, ret ? "ERR" : "OK");
 	return ret;
 }
 

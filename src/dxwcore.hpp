@@ -742,7 +742,7 @@ DWORD dxwVirtualDriveTypeA(LPCSTR);
 DWORD dxwVirtualDriveTypeW(LPCWSTR);
 void PeekHotKeys();
 void nanosleep(LONGLONG);
-BOOL FixWindowProc(char *, HWND, UINT, WPARAM *, LPARAM *, HRESULT *);
+BOOL FixWindowProc(char *, HWND, UINT, WPARAM *, LPARAM *, HRESULT *, BOOL);
 
 // defines below to condition debug message handling
 #ifndef DXW_NOTRACES

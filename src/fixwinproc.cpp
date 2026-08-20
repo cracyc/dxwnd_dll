@@ -45,7 +45,7 @@ static void dx_UpdatePositionLock(HWND hwnd)
 // FALSE	: skip the window procedure and return *pResult
 // TRUE		: run the window procedure 
 
-BOOL FixWindowProc(ApiArg, HWND hwnd, UINT Msg, WPARAM *wpParam, LPARAM *lpParam, HRESULT *pResult)
+BOOL FixWindowProc(ApiArg, HWND hwnd, UINT Msg, WPARAM *wpParam, LPARAM *lpParam, HRESULT *pResult, BOOL bScale)
 {
 	LPARAM lParam;
 	WPARAM wParam;
@@ -360,7 +360,7 @@ BOOL FixWindowProc(ApiArg, HWND hwnd, UINT Msg, WPARAM *wpParam, LPARAM *lpParam
 			if((dxw.dwFlags1 & CLIPCURSOR) && !dxw.IsClipCursorActive()) {
 				dxw.SetClipCursor();
 			}
-			if(dxw.MustFixCoordinates){ // mouse processing  
+			if(dxw.MustFixCoordinates && bScale){ // mouse processing  
 				// scale mouse coordinates
 				prev.x = LOWORD(lParam);
 				prev.y = HIWORD(lParam);

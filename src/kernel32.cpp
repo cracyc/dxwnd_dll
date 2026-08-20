@@ -1,6 +1,7 @@
 #define  _CRT_SECURE_NO_WARNINGS
 
 #define HANDLEFAKERAWDEVICE
+#define DXWESCAPEDINIENTRIES
 
 #define _MODULE "kernel32"
 
@@ -20,6 +21,8 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#include "kernel32.profiles.h"
 
 #ifndef DXW_NOTRACES
 #define TraceError() OutErrorSYS("%s: ERROR err=%d\n", ApiRef, GetLastError())
@@ -72,6 +75,9 @@ LPSTR WINAPI extGetCommandLineA();
 typedef DWORD (WINAPI *GetModuleFileNameA_Type)(HMODULE, LPSTR, DWORD);
 GetModuleFileNameA_Type pGetModuleFileNameA;
 DWORD WINAPI extGetModuleFileNameA(HMODULE, LPSTR, DWORD);
+typedef DWORD (WINAPI *GetModuleFileNameW_Type)(HMODULE, LPWSTR, DWORD);
+GetModuleFileNameW_Type pGetModuleFileNameW;
+DWORD WINAPI extGetModuleFileNameW(HMODULE, LPWSTR, DWORD);
 typedef BOOL (WINAPI *GetOverlappedResult_Type)(HANDLE, LPOVERLAPPED, LPDWORD, BOOL);
 GetOverlappedResult_Type pGetOverlappedResult;
 BOOL WINAPI extGetOverlappedResult(HANDLE, LPOVERLAPPED, LPDWORD, BOOL);
@@ -81,6 +87,19 @@ DWORD WINAPI extGetFullPathNameA(LPCSTR, DWORD, LPSTR, LPSTR *);
 //typedef DWORD (WINAPI *GetFullPathNameW_Type)(LPCWSTR, DWORD, LPWSTR, LPWSTR *);
 //GetFullPathNameW_Type pGetFullPathNameW;
 //DWORD WINAPI extGetFullPathNameW(LPCWSTR, DWORD, LPWSTR, LPWSTR *);
+
+GetPrivateProfileIntA_Type pGetPrivateProfileIntA = NULL;
+GetPrivateProfileIntW_Type pGetPrivateProfileIntW = NULL;
+GetPrivateProfileStringA_Type pGetPrivateProfileStringA = NULL;
+GetPrivateProfileStringW_Type pGetPrivateProfileStringW = NULL;
+GetProfileIntA_Type pGetProfileIntA = NULL;
+GetProfileIntW_Type pGetProfileIntW = NULL;
+GetProfileStringA_Type pGetProfileStringA = NULL;
+GetProfileStringW_Type pGetProfileStringW = NULL;
+WritePrivateProfileStringA_Type pWritePrivateProfileStringA = NULL;
+WritePrivateProfileStringW_Type pWritePrivateProfileStringW = NULL;
+WriteProfileStringA_Type pWriteProfileStringA = NULL;
+WriteProfileStringW_Type pWriteProfileStringW = NULL;
 
 #ifdef TRACEALL
 typedef int (WINAPI *GetDateFormatA_Type)(LCID, DWORD, const SYSTEMTIME *, LPCSTR, LPSTR, int);
@@ -136,33 +155,7 @@ UINT WINAPI extGetWindowsDirectoryA(LPSTR, UINT);
 typedef UINT (WINAPI *GetWindowsDirectoryW_Type)(LPWSTR, UINT);
 GetWindowsDirectoryW_Type pGetWindowsDirectoryW = NULL;
 UINT WINAPI extGetWindowsDirectoryW(LPWSTR, UINT);
-typedef DWORD (WINAPI *GetPrivateProfileStringA_Type)(LPCSTR, LPCSTR, LPCSTR, LPSTR, DWORD, LPCSTR);
-GetPrivateProfileStringA_Type pGetPrivateProfileStringA = NULL;
-DWORD WINAPI extGetPrivateProfileStringA(LPCSTR, LPCSTR, LPCSTR, LPSTR, DWORD, LPCSTR);
-typedef DWORD (WINAPI *GetPrivateProfileStringW_Type)(LPCWSTR, LPCWSTR, LPCWSTR, LPWSTR, DWORD, LPCWSTR);
-GetPrivateProfileStringW_Type pGetPrivateProfileStringW = NULL;
-DWORD WINAPI extGetPrivateProfileStringW(LPCWSTR, LPCWSTR, LPCWSTR, LPWSTR, DWORD, LPCWSTR);
-typedef DWORD (WINAPI *WritePrivateProfileStringA_Type)(LPCSTR, LPCSTR, LPSTR, LPCSTR);
-WritePrivateProfileStringA_Type pWritePrivateProfileStringA = NULL;
-DWORD WINAPI extWritePrivateProfileStringA(LPCSTR, LPCSTR, LPSTR, LPCSTR);
-typedef DWORD (WINAPI *GetProfileStringA_Type)(LPCSTR, LPCSTR, LPCSTR, LPSTR, DWORD);
-GetProfileStringA_Type pGetProfileStringA = NULL;
-DWORD WINAPI extGetProfileStringA(LPCSTR, LPCSTR, LPCSTR, LPSTR, DWORD);
-typedef DWORD (WINAPI *WriteProfileStringA_Type)(LPCSTR, LPCSTR, LPSTR);
-WriteProfileStringA_Type pWriteProfileStringA = NULL;
-DWORD WINAPI extWriteProfileStringA(LPCSTR, LPCSTR, LPSTR);
-typedef UINT (WINAPI *GetPrivateProfileIntA_Type)(LPCTSTR, LPCTSTR, INT, LPCTSTR);
-GetPrivateProfileIntA_Type pGetPrivateProfileIntA = NULL;
-UINT WINAPI extGetPrivateProfileIntA(LPCTSTR, LPCTSTR, INT, LPCTSTR);
-typedef UINT (WINAPI *GetPrivateProfileIntW_Type)(LPCWSTR, LPCWSTR, INT, LPCWSTR);
-GetPrivateProfileIntW_Type pGetPrivateProfileIntW = NULL;
-UINT WINAPI extGetPrivateProfileIntW(LPCWSTR, LPCWSTR, INT, LPCWSTR);
-typedef UINT (WINAPI *GetProfileIntA_Type)(LPCTSTR, LPCTSTR, INT);
-GetProfileIntA_Type pGetProfileIntA = NULL;
-UINT WINAPI extGetProfileIntA(LPCTSTR, LPCTSTR, INT);
-typedef UINT (WINAPI *GetProfileIntW_Type)(LPCWSTR, LPCWSTR, INT);
-GetProfileIntW_Type pGetProfileIntW = NULL;
-UINT WINAPI extGetProfileIntW(LPCWSTR, LPCWSTR, INT);
+
 typedef BOOL (WINAPI *DeviceIoControl_Type)(HANDLE, DWORD, LPVOID, DWORD, LPVOID, DWORD, LPDWORD, LPOVERLAPPED);
 DeviceIoControl_Type pDeviceIoControl = NULL;
 BOOL WINAPI extDeviceIoControl(HANDLE, DWORD, LPVOID, DWORD, LPVOID, DWORD, LPDWORD, LPOVERLAPPED);
@@ -458,6 +451,7 @@ static HookEntryEx_Type Hooks[]={
 
 	{HOOK_IAT_CANDIDATE, 0, "GetCommandLineA", (FARPROC)GetCommandLineA, (FARPROC *)&pGetCommandLineA, (FARPROC)extGetCommandLineA},
 	{HOOK_IAT_CANDIDATE, 0, "GetModuleFileNameA", (FARPROC)GetModuleFileNameA, (FARPROC *)&pGetModuleFileNameA, (FARPROC)extGetModuleFileNameA},
+	{HOOK_IAT_CANDIDATE, 0, "GetModuleFileNameW", (FARPROC)GetModuleFileNameW, (FARPROC *)&pGetModuleFileNameW, (FARPROC)extGetModuleFileNameW},
 
 #ifdef TLSDUMP
 	{HOOK_IAT_CANDIDATE, 0, "TlsAlloc", (FARPROC)TlsAlloc, (FARPROC *)&pTlsAlloc, (FARPROC)extTlsAlloc},
@@ -471,6 +465,8 @@ static HookEntryEx_Type Hooks[]={
 #endif
 
 	{HOOK_IAT_CANDIDATE, 0, "SetErrorMode", (FARPROC)SetErrorMode, (FARPROC *)&pSetErrorMode, (FARPROC)extSetErrorMode},
+	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileStringA", (FARPROC)GetPrivateProfileStringA, (FARPROC *)&pGetPrivateProfileStringA, (FARPROC)extGetPrivateProfileStringA},
+	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileStringW", (FARPROC)GetPrivateProfileStringW, (FARPROC *)&pGetPrivateProfileStringW, (FARPROC)extGetPrivateProfileStringW},
 
 	{HOOK_IAT_CANDIDATE, 0, 0, NULL, 0, 0} // terminator
 };
@@ -565,8 +561,6 @@ static HookEntryEx_Type RemapIOHooks[]={
 	{HOOK_HOT_CANDIDATE, 0, "GetDiskFreeSpaceW", (FARPROC)GetDiskFreeSpaceW, (FARPROC *)&pGetDiskFreeSpaceW, (FARPROC)extGetDiskFreeSpaceW},
 	{HOOK_HOT_CANDIDATE, 0, "GetDiskFreeSpaceExA", (FARPROC)GetDiskFreeSpaceExA, (FARPROC *)&pGetDiskFreeSpaceExA, (FARPROC)extGetDiskFreeSpaceExA},
 	{HOOK_HOT_CANDIDATE, 0, "GetDiskFreeSpaceExW", (FARPROC)GetDiskFreeSpaceExW, (FARPROC *)&pGetDiskFreeSpaceExW, (FARPROC)extGetDiskFreeSpaceExW},
-	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileStringA", (FARPROC)GetPrivateProfileStringA, (FARPROC *)&pGetPrivateProfileStringA, (FARPROC)extGetPrivateProfileStringA},
-	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileStringW", (FARPROC)GetPrivateProfileStringW, (FARPROC *)&pGetPrivateProfileStringW, (FARPROC)extGetPrivateProfileStringW},
 	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileIntA", (FARPROC)GetPrivateProfileIntA, (FARPROC *)&pGetPrivateProfileIntA, (FARPROC)extGetPrivateProfileIntA},
 	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileIntW", (FARPROC)GetPrivateProfileIntW, (FARPROC *)&pGetPrivateProfileIntW, (FARPROC)extGetPrivateProfileIntW},
 	{HOOK_HOT_CANDIDATE, 0, "GetFileSize", (FARPROC)GetFileSize, (FARPROC *)&pGetFileSize, (FARPROC)extGetFileSize},
@@ -594,15 +588,16 @@ static HookEntryEx_Type LimitHooks[]={
 static HookEntryEx_Type SysFolderHooks[]={
 	{HOOK_HOT_CANDIDATE, 0, "GetWindowsDirectoryA", (FARPROC)GetWindowsDirectoryA, (FARPROC *)&pGetWindowsDirectoryA, (FARPROC)extGetWindowsDirectoryA},
 	{HOOK_HOT_CANDIDATE, 0, "GetWindowsDirectoryW", (FARPROC)GetWindowsDirectoryW, (FARPROC *)&pGetWindowsDirectoryW, (FARPROC)extGetWindowsDirectoryW},
-	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileStringA", (FARPROC)GetPrivateProfileStringA, (FARPROC *)&pGetPrivateProfileStringA, (FARPROC)extGetPrivateProfileStringA},
-	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileStringW", (FARPROC)GetPrivateProfileStringW, (FARPROC *)&pGetPrivateProfileStringW, (FARPROC)extGetPrivateProfileStringW},
-	{HOOK_HOT_CANDIDATE, 0, "WritePrivateProfileStringA", (FARPROC)WritePrivateProfileStringA, (FARPROC *)&pWritePrivateProfileStringA, (FARPROC)extWritePrivateProfileStringA},
 	{HOOK_HOT_CANDIDATE, 0, "GetProfileStringA", (FARPROC)GetProfileStringA, (FARPROC *)&pGetProfileStringA, (FARPROC)extGetProfileStringA},
-	{HOOK_HOT_CANDIDATE, 0, "WriteProfileStringA", (FARPROC)WriteProfileStringA, (FARPROC *)&pWriteProfileStringA, (FARPROC)extWriteProfileStringA},
+	{HOOK_HOT_CANDIDATE, 0, "GetProfileStringW", (FARPROC)GetProfileStringW, (FARPROC *)&pGetProfileStringW, (FARPROC)extGetProfileStringW},
 	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileIntA", (FARPROC)GetPrivateProfileIntA, (FARPROC *)&pGetPrivateProfileIntA, (FARPROC)extGetPrivateProfileIntA},
 	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileIntW", (FARPROC)GetPrivateProfileIntW, (FARPROC *)&pGetPrivateProfileIntW, (FARPROC)extGetPrivateProfileIntW},
 	{HOOK_HOT_CANDIDATE, 0, "GetProfileIntA", (FARPROC)GetProfileIntA, (FARPROC *)&pGetProfileIntA, (FARPROC)extGetProfileIntA},
 	{HOOK_HOT_CANDIDATE, 0, "GetProfileIntW", (FARPROC)GetProfileIntW, (FARPROC *)&pGetProfileIntW, (FARPROC)extGetProfileIntW},
+	{HOOK_HOT_CANDIDATE, 0, "WritePrivateProfileStringA", (FARPROC)WritePrivateProfileStringA, (FARPROC *)&pWritePrivateProfileStringA, (FARPROC)extWritePrivateProfileStringA},
+	{HOOK_HOT_CANDIDATE, 0, "WritePrivateProfileStringW", (FARPROC)WritePrivateProfileStringW, (FARPROC *)&pWritePrivateProfileStringW, (FARPROC)extWritePrivateProfileStringW},
+	{HOOK_HOT_CANDIDATE, 0, "WriteProfileStringA", (FARPROC)WriteProfileStringA, (FARPROC *)&pWriteProfileStringA, (FARPROC)extWriteProfileStringA},
+	{HOOK_HOT_CANDIDATE, 0, "WriteProfileStringW", (FARPROC)WriteProfileStringW, (FARPROC *)&pWriteProfileStringW, (FARPROC)extWriteProfileStringW},
 	{HOOK_IAT_CANDIDATE, 0, 0, NULL, 0, 0} // terminator
 };
 
@@ -647,11 +642,20 @@ static HookEntryEx_Type CritRegionHooks[]={
 };
 
 static HookEntryEx_Type InternalHooks[]={
-	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileStringA", (FARPROC)GetPrivateProfileStringA, (FARPROC *)&pGetPrivateProfileStringA, (FARPROC)extGetPrivateProfileStringA},
 	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileIntA", (FARPROC)GetPrivateProfileIntA, (FARPROC *)&pGetPrivateProfileIntA, (FARPROC)extGetPrivateProfileIntA},
+	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileIntW", (FARPROC)GetPrivateProfileIntW, (FARPROC *)&pGetPrivateProfileIntW, (FARPROC)extGetPrivateProfileIntW},
+	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileStringA", (FARPROC)GetPrivateProfileStringA, (FARPROC *)&pGetPrivateProfileStringA, (FARPROC)extGetPrivateProfileStringA},
+	{HOOK_HOT_CANDIDATE, 0, "GetPrivateProfileStringW", (FARPROC)GetPrivateProfileStringW, (FARPROC *)&pGetPrivateProfileStringW, (FARPROC)extGetPrivateProfileStringW},
+	{HOOK_HOT_CANDIDATE, 0, "GetProfileIntA", (FARPROC)GetProfileIntA, (FARPROC *)&pGetProfileIntA, (FARPROC)extGetProfileIntA},
+	{HOOK_HOT_CANDIDATE, 0, "GetProfileIntW", (FARPROC)GetProfileIntW, (FARPROC *)&pGetProfileIntW, (FARPROC)extGetProfileIntW},
+	{HOOK_HOT_CANDIDATE, 0, "GetProfileStringA", (FARPROC)GetProfileStringA, (FARPROC *)&pGetProfileStringA, (FARPROC)extGetProfileStringA},
+	{HOOK_HOT_CANDIDATE, 0, "GetProfileStringW", (FARPROC)GetProfileStringW, (FARPROC *)&pGetProfileStringW, (FARPROC)extGetProfileStringW},
 	{HOOK_HOT_CANDIDATE, 0, "WritePrivateProfileStringA", (FARPROC)WritePrivateProfileStringA, (FARPROC *)&pWritePrivateProfileStringA, (FARPROC)extWritePrivateProfileStringA},
-	{HOOK_HOT_REQUIRED, 0, "CreateFileW", (FARPROC)CreateFileW, (FARPROC *)&pCreateFileW, (FARPROC)extCreateFileW},
-	{HOOK_HOT_REQUIRED, 0, "DeleteFileW", (FARPROC)DeleteFileW, (FARPROC *)&pDeleteFileW, (FARPROC)extDeleteFileW},
+	{HOOK_HOT_CANDIDATE, 0, "WriteProfileStringW", (FARPROC)WriteProfileStringW, (FARPROC *)&pWriteProfileStringW, (FARPROC)extWriteProfileStringW},
+	{HOOK_HOT_CANDIDATE, 0, "GetCurrentDirectoryA", (FARPROC)GetCurrentDirectoryA, (FARPROC *)&pGetCurrentDirectoryA, (FARPROC)extGetCurrentDirectoryA},
+	{HOOK_HOT_CANDIDATE, 0, "GetCurrentDirectoryW", (FARPROC)GetCurrentDirectoryW, (FARPROC *)&pGetCurrentDirectoryW, (FARPROC)extGetCurrentDirectoryW},
+	{HOOK_HOT_REQUIRED,  0, "CreateFileW", (FARPROC)CreateFileW, (FARPROC *)&pCreateFileW, (FARPROC)extCreateFileW},
+	{HOOK_HOT_REQUIRED,  0, "DeleteFileW", (FARPROC)DeleteFileW, (FARPROC *)&pDeleteFileW, (FARPROC)extDeleteFileW},
 	{HOOK_IAT_CANDIDATE, 0, 0, NULL, 0, 0} // terminator
 };
 
@@ -3979,8 +3983,15 @@ HFILE WINAPI ext_lopen(LPCSTR lpPathName, int iReadWrite)
 	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) lpPathName = dxwTranslatePathA(lpPathName, &mapping);
 
 	if(mapping == DXW_FAKE_CD) {
-		// tbd: fake error codes for write access on fake CD
-		if(iReadWrite & (OF_READWRITE|OF_WRITE)) {
+		BOOL simError = FALSE;
+		// v2.06.16: fake error codes for write access on fake CD
+		if(dxw.dwFlags15 & EMULATEWIN95){
+			if(iReadWrite & OF_WRITE) simError = TRUE;
+		}
+		else {
+			if(iReadWrite & (OF_READWRITE|OF_WRITE)) simError = TRUE;
+		}
+		if(simError){
 			OutTraceDW("%s: simulate HFILE_ERROR on CD\n", ApiRef);
 			SetLastError(ERROR_ACCESS_DENIED);// assuming the file was there, ERROR_FILE_NOT_FOUND otherwise ?
 			return HFILE_ERROR;
@@ -4019,6 +4030,7 @@ HFILE WINAPI ext_lopen(LPCSTR lpPathName, int iReadWrite)
 				dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
 				break;
 			case OF_READWRITE:
+				// beware: on Win95 it should be possible to open with OF_READWRITE a CD file in read only mode.
 				dwDesiredAccess = GENERIC_ALL;
 				dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE;
 				dwCreationDisposition = CREATE_NEW; // the less dangerous ...
@@ -4040,6 +4052,21 @@ HFILE WINAPI ext_lopen(LPCSTR lpPathName, int iReadWrite)
 	}
 	else {
 		ret=(*p_lopen)(lpPathName, iReadWrite);
+	}
+
+	// v2.06.16: for _lopen on Win95 the READWRITE on CD devices is allowed in read only mode
+	if((dxw.dwFlags15 & EMULATEWIN95) && (iReadWrite & OF_READWRITE) && (ret == HFILE_ERROR)){
+		char fullPath[MAX_PATH+1];
+		DWORD len;
+		len = GetFullPathNameA(lpPathName, MAX_PATH, fullPath, NULL);
+		if(len >= 3){
+			fullPath[3]=0;
+			if((*pGetDriveTypeA)(fullPath) == DRIVE_CDROM){
+				OutTraceSYS("%s: switch to OF_READ on CD device\n", ApiRef, ret);
+				iReadWrite &= ~OF_READWRITE;
+				ret=(*p_lopen)(lpPathName, iReadWrite);
+			}
+		}
 	}
 
 	if(ret == HFILE_ERROR){
@@ -5223,10 +5250,10 @@ HGLOBAL WINAPI extGlobalFree(HGLOBAL hMem)
 
 // -------------------- REMAPSYSFOLDERS hooks --------------------
 
-static char *GetFakeWinDirA()
+char *GetFakeWinDirA()
 {
 	static char myPathA[MAX_PATH];
-	GetModuleFileNameA(NULL, myPathA, MAX_PATH);
+	(*pGetModuleFileNameA)(NULL, myPathA, MAX_PATH);
 	//PathRemoveFileSpecA(myPathA);
 	char *p = myPathA + strlen(myPathA);
 	while((*p != '\\') && (p > myPathA)) p--;
@@ -5236,10 +5263,10 @@ static char *GetFakeWinDirA()
 	return myPathA;
 }
 
-static WCHAR *GetFakeWinDirW()
+WCHAR *GetFakeWinDirW()
 {
 	static WCHAR myPathW[MAX_PATH];
-	GetModuleFileNameW(NULL, myPathW, MAX_PATH);
+	(*pGetModuleFileNameW)(NULL, myPathW, MAX_PATH);
 	//PathRemoveFileSpecW(myPathW);
 	WCHAR *p = myPathW + wcslen(myPathW);
 	while((*p != L'\\') && (p > myPathW)) p--;
@@ -5249,7 +5276,7 @@ static WCHAR *GetFakeWinDirW()
 	return myPathW;
 }
 
-static BOOL isRelativePathA(LPCSTR path)
+BOOL isRelativePathA(LPCSTR path)
 {
 	// v2.05.19: NULL path is to be considered as relative 
 	if(path == NULL) return TRUE;
@@ -5266,7 +5293,7 @@ static BOOL isRelativePathA(LPCSTR path)
 	return TRUE;
 }
 
-static BOOL isRelativePathW(LPCWSTR path)
+BOOL isRelativePathW(LPCWSTR path)
 {
 	// v2.05.29: NULL path is to be considered as relative 
 	if(path == NULL) return TRUE;
@@ -5290,7 +5317,7 @@ UINT WINAPI extGetWindowsDirectoryA(LPSTR lpBuffer, UINT uSize)
 	char *sFakePath = GetFakeWinDirA();
 	ret = strlen(sFakePath);
 	strncpy(lpBuffer, sFakePath, uSize);
-	OutTraceDW("%s: returning relative path\n", ApiRef);
+	OutTraceDW("%s: returning len(ret)=%d relative path=\"%s\"\n", ApiRef, ret, lpBuffer);
 	return ret;
 }
 
@@ -5305,183 +5332,6 @@ UINT WINAPI extGetWindowsDirectoryW(LPWSTR lpBuffer, UINT uSize)
 	return ret;
 }
 
-DWORD WINAPI extGetPrivateProfileStringA(LPCSTR lpAppName, LPCSTR lpKeyName, LPCSTR lpDefault, LPSTR lpReturnedString, DWORD nSize, LPCSTR lpFileName)
-{
-	DWORD ret;
-	ApiName("GetPrivateProfileStringA");
-	char lpNewPath[MAX_PATH];
-	OutTraceSYS("%s: app=%s key=%s default=\"%s\" size=%d filename=\"%s\"\n", ApiRef, lpAppName, lpKeyName, lpDefault, nSize, lpFileName);
-	// v2.05.19: safeguard against possibly NULL lpFileName
-	if((dxw.dwFlags11 & REMAPSYSFOLDERS) && isRelativePathA(lpFileName)){
-		strcpy(lpNewPath, GetFakeWinDirA());
-		strcat(lpNewPath, "\\");
-		// v2.06.08: neutralize registry remapping for Control.ini, System.ini and Winfile.ini
-		if(!_stricmp(lpFileName, "Control.ini")) strcat(lpNewPath, ".Control.ini");
-		else
-		if(!_stricmp(lpFileName, "System.ini")) strcat(lpNewPath, ".System.ini");
-		else
-		if(!_stricmp(lpFileName, "Winfile.ini")) strcat(lpNewPath, ".Winfile.ini");
-		else
-		strcat(lpNewPath, lpFileName ? lpFileName : "Win.ini");
-		lpFileName = lpNewPath;
-		OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, lpFileName);
-	}
-	// v2.05.19: safeguard against possibly NULL lpFileName
-	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) && lpFileName) {
-		lpFileName = dxwTranslatePathA(lpFileName, NULL);
-	}
-	ret = (*pGetPrivateProfileStringA)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, lpFileName);
-	OutTraceSYS("%s: ret=%#x retstring=\"%s\"\n", ApiRef, ret, lpReturnedString);
-	return ret;
-}
-
-DWORD WINAPI extGetPrivateProfileStringW(LPCWSTR lpAppName, LPCWSTR lpKeyName, LPCWSTR lpDefault, LPWSTR lpReturnedString, DWORD nSize, LPCWSTR lpFileName)
-{
-	DWORD ret;
-	ApiName("GetPrivateProfileStringW");
-	WCHAR lpNewPath[MAX_PATH];
-	OutTraceSYS("%s: app=\"%ls\" key=\"%ls\" default=\"%ls\" size=%d filename=\"%ls\"\n", ApiRef, lpAppName, lpKeyName, lpDefault, nSize, lpFileName);
-	// v2.05.19: safeguard against possibly NULL lpFileName
-	if((dxw.dwFlags11 & REMAPSYSFOLDERS) && isRelativePathW(lpFileName)){
-		wcscpy(lpNewPath, GetFakeWinDirW());
-		wcscat(lpNewPath, L"\\");
-		wcscat(lpNewPath, lpFileName ? lpFileName : L"Win.ini");
-		lpFileName = lpNewPath;
-		OutTraceDW("%s: remapped path=\"%ls\"\n", ApiRef, lpFileName);
-	}
-	// v2.05.19: safeguard against possibly NULL lpFileName
-	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) && lpFileName) {
-		lpFileName = dxwTranslatePathW(lpFileName, NULL);
-	}
-	ret = (*pGetPrivateProfileStringW)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, lpFileName);
-	OutTraceSYS("%s: ret=%#x retstring=\"%ls\"\n", ApiRef, ret, lpReturnedString);
-	return ret;
-}
-
-DWORD WINAPI extWritePrivateProfileStringA(LPCSTR lpAppName, LPCSTR lpKeyName, LPSTR lpString, LPCSTR lpFileName)
-{
-	DWORD ret;
-	ApiName("WritePrivateProfileStringA");
-	char lpNewPath[MAX_PATH];
-	OutTraceSYS("%s: app=\"%s\" key=\"%s\" val=\"%s\" filename=\"%s\"\n", ApiRef, lpAppName, lpKeyName, lpString, lpFileName);
-	if(isRelativePathA(lpFileName)){
-		strcpy(lpNewPath, GetFakeWinDirA());
-		strcat(lpNewPath, "\\");
-		strcat(lpNewPath, lpFileName); // should I set to Win.ini if NULL??
-		lpFileName = lpNewPath;
-		OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, lpFileName);
-	}
-	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
-		DWORD mapping;
-		lpFileName = dxwTranslatePathA(lpFileName, &mapping);
-		// what if we try to write on a CD ini file?
-		if(mapping == DXW_FAKE_CD) return TRUE; 
-	}
-	ret = (*pWritePrivateProfileStringA)(lpAppName, lpKeyName, lpString, lpFileName);
-	if(!ret) OutTraceSYS("%s: ERROR err=%d\n", ApiRef, GetLastError());
-	return ret;
-}
-
-DWORD WINAPI extGetProfileStringA(LPCSTR lpAppName, LPCSTR lpKeyName, LPCSTR lpDefault, LPSTR lpReturnedString, DWORD nSize)
-{
-	DWORD ret;
-	ApiName("GetProfileStringA");
-	char sPath[MAX_PATH];
-	OutTraceSYS("%s: app=\"%s\" key=\"%s\" default=\"%s\" size=%d\n", ApiRef, lpAppName, lpKeyName, lpDefault, nSize);
-	strcpy_s(sPath, GetFakeWinDirA());
-	strcat_s(sPath, "\\Win.ini");
-	OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, sPath);
-	ret = (*pGetPrivateProfileStringA)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, sPath);
-	OutTraceSYS("%s: ret=%#x retstring=\"%s\"\n", ApiRef, ret, lpReturnedString);
-	return ret;
-}
-
-DWORD WINAPI extWriteProfileStringA(LPCSTR lpAppName, LPCSTR lpKeyName, LPSTR lpString)
-{
-	DWORD ret;
-	ApiName("WriteProfileStringA");
-	char sPath[MAX_PATH];
-	OutTraceSYS("%s: app=\"%s\" key=\"%s\" val\"=%s\"\n", ApiRef, lpAppName, lpKeyName, lpString);
-	strcpy_s(sPath, GetFakeWinDirA());
-	strcat_s(sPath, "\\Win.ini");
-	OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, sPath);
-	ret = (*pWritePrivateProfileStringA)(lpAppName, lpKeyName, lpString, sPath);
-	return ret;
-}
-
-UINT WINAPI extGetPrivateProfileIntA(LPCTSTR lpAppName, LPCTSTR lpKeyName, INT nDefault, LPCTSTR lpFileName)
-{
-	DWORD ret;
-	ApiName("GetPrivateProfileIntA");
-	char lpNewPath[MAX_PATH];
-	OutTraceSYS("%s: app=\"%s\" key=\"%s\" default=%d filename=\"%s\"\n", ApiRef, lpAppName, lpKeyName, nDefault, lpFileName);
-	// v2.05.19: safeguard against possibly NULL lpFileName
-	if((dxw.dwFlags11 & REMAPSYSFOLDERS) && isRelativePathA(lpFileName)){
-		strcpy(lpNewPath, GetFakeWinDirA());
-		strcat(lpNewPath, "\\");
-		strcat(lpNewPath, lpFileName ? lpFileName : "Win.ini");
-		lpFileName = lpNewPath;
-		OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, lpFileName);
-	}
-	// v2.05.19: safeguard against possibly NULL lpFileName
-	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) && lpFileName) {
-		lpFileName = dxwTranslatePathA(lpFileName, NULL);
-	}
-	ret = (*pGetPrivateProfileIntA)(lpAppName, lpKeyName, nDefault, lpFileName);
-	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
-	return ret;
-}
-
-UINT WINAPI extGetPrivateProfileIntW(LPCWSTR lpAppName, LPCWSTR lpKeyName, INT nDefault, LPCWSTR lpFileName)
-{
-	DWORD ret;
-	ApiName("GetPrivateProfileIntW");
-	WCHAR lpNewPath[MAX_PATH];
-	OutTraceSYS("%s: app=\"%ls\" key=\"%ls\" default=%d filename=\"%ls\"\n", ApiRef, lpAppName, lpKeyName, nDefault, lpFileName);
-	// v2.05.19: safeguard against possibly NULL lpFileName
-	if((dxw.dwFlags11 & REMAPSYSFOLDERS) && isRelativePathW(lpFileName)){
-		wcscpy(lpNewPath, GetFakeWinDirW());
-		wcscat(lpNewPath, L"\\");
-		wcscat(lpNewPath, lpFileName ? lpFileName : L"Win.ini");
-		lpFileName = lpNewPath;
-		OutTraceDW("%s: remapped path=\"%ls\"\n", ApiRef, lpFileName);
-	}
-	// v2.05.19: safeguard against possibly NULL lpFileName
-	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) && lpFileName) {
-		lpFileName = dxwTranslatePathW(lpFileName, NULL);
-	}
-	ret = (*pGetPrivateProfileIntW)(lpAppName, lpKeyName, nDefault, lpFileName);
-	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
-	return ret;
-}
-
-UINT WINAPI extGetProfileIntA(LPCTSTR lpAppName, LPCTSTR lpKeyName, INT nDefault)
-{
-	DWORD ret;
-	ApiName("GetProfileIntA");
-	char sPath[MAX_PATH];
-	OutTraceSYS("%s: app=\"%s\" key=\"%s\" default=%d\n", ApiRef, lpAppName, lpKeyName, nDefault);
-	strcpy_s(sPath, MAX_PATH, GetFakeWinDirA());
-	strcat_s(sPath, MAX_PATH, "\\Win.ini");
-	OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, sPath);
-	ret = (*pGetPrivateProfileIntA)(lpAppName, lpKeyName, nDefault, sPath);
-	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
-	return ret;
-}
-
-UINT WINAPI extGetProfileIntW(LPCWSTR lpAppName, LPCWSTR lpKeyName, INT nDefault)
-{
-	DWORD ret;
-	ApiName("GetProfileIntW");
-	WCHAR sPath[MAX_PATH];
-	OutTraceSYS("%s: app=\"%ls\" key=\"%ls\" default=%d\n", ApiRef, lpAppName, lpKeyName, nDefault);
-	wcscpy_s(sPath, MAX_PATH, GetFakeWinDirW());
-	wcscat_s(sPath, MAX_PATH, L"\\Win.ini");
-	OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, sPath);
-	ret = (*pGetPrivateProfileIntW)(lpAppName, lpKeyName, nDefault, sPath);
-	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
-	return ret;
-}
 
 DWORD WINAPI extGetFullPathNameA(LPCSTR lpFileName, DWORD nBufferLength, LPSTR lpBuffer, LPSTR *lpFilePart)
 {
@@ -6835,8 +6685,8 @@ DWORD WINAPI extSearchPathA(LPCSTR lpPath, LPCSTR lpFileName, LPCSTR lpExtension
 {
 	ApiName("SearchPathA");
 	DWORD res;
-	OutTraceSYS("%s: path=\"%s\" fname=\"%s\" ext=\"%s\" buflen=%d\n", 
-		ApiRef, lpPath, lpFileName, lpExtension, nBufferLength);
+	OutTraceSYS("%s: fname=\"%s\" path=\"%s\" ext=\"%s\" buflen=%d\n", 
+		ApiRef, lpFileName, lpPath, lpExtension, nBufferLength);
 
 	// v2.06.03 fix: lpPath can be NULL
 	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
@@ -6873,8 +6723,8 @@ DWORD WINAPI extSearchPathW(LPCWSTR lpPath, LPCWSTR lpFileName, LPCWSTR lpExtens
 {
 	ApiName("SearchPathW");
 	DWORD res;
-	OutTraceSYS("%s: path=\"%ls\" fname=\"%ls\" ext=\"%ls\" buflen=%d\n", 
-		ApiRef, lpPath, lpFileName, lpExtension, nBufferLength);
+	OutTraceSYS("%s: fname=\"%ls\" path=\"%ls\" ext=\"%ls\" buflen=%d\n", 
+		ApiRef, lpFileName, lpPath, lpExtension, nBufferLength);
 
 	// v2.06.03 fix: lpPath can be NULL
 	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
@@ -7082,6 +6932,41 @@ DWORD WINAPI extGetModuleFileNameA(
 	//}
 
 	OutTraceSYS("%s: ret(len)=%d fname=\"%s\"\n", ApiRef, ret, lpFilename);
+	return ret;
+}
+
+DWORD WINAPI extGetModuleFileNameW(
+	HMODULE hModule,      // handle to module
+    LPWSTR   lpFilename,   // file name of module
+    DWORD   nSize         // size of buffer
+    )
+{
+	DWORD ret;
+	ApiName("GetModuleFileNameW");
+	OutTraceSYS("%s: hmod=%#x nSize=%d\n", ApiRef, hModule, nSize);
+	ret = (*pGetModuleFileNameW)(hModule, lpFilename, nSize);
+	if(dxw.dwFlags16 & EMUGETCOMMANDLINE){
+		WCHAR fileName[MAX_PATH];
+		WCHAR shortName[MAX_PATH];
+		ret = (*pGetModuleFileNameW)(hModule, fileName, MAX_PATH);
+		if (wcschr(fileName, L' ') != NULL){
+			int len = GetShortPathNameW(fileName, shortName, MAX_PATH);
+			OutTraceSYS("%s: SHORTED \"%ls\"->\"%ls\"\n", ApiRef, fileName, shortName);
+			wcsncpy(lpFilename, shortName, nSize);
+			if(wcslen(shortName)>=nSize) lpFilename[nSize-1]=0;
+			ret = wcslen(lpFilename);
+		}
+	}
+
+	// Sierra games use the module filename to identify the corresponding configuration
+	// file <modulename>.ini. The ".noshim" postfix should be trimmed out.
+	// v2.06.12: the ".noshim" suffix is no longer used
+	//if(dxw.dwFlags7 & CLEARSHIMS){
+	//	char *p = strstr(lpFilename, ".noshim");
+	//	if(p) *p=0;
+	//}
+
+	OutTraceSYS("%s: ret(len)=%d fname=\"%ls\"\n", ApiRef, ret, lpFilename);
 	return ret;
 }
 
