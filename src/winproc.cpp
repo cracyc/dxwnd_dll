@@ -786,7 +786,7 @@ LRESULT CALLBACK extWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 	}
 
 	HRESULT Result;
-	BOOL action = FixWindowProc(ApiRef, hwnd, message, &wparam, &lparam, &Result);
+	BOOL action = FixWindowProc(ApiRef, hwnd, message, &wparam, &lparam, &Result, TRUE);
 	if(!action) return Result;
 
 	// v2.06.05 fix: suspend AUTOREFRESH during mci movie play

@@ -584,7 +584,8 @@ static LONG myRegOpenKeyEx(
 	char sKey[MAX_PATH+1];
 	char RegBuf[MAX_PATH+1];
 
-	if(lpSubKey)
+	// v2.06.16: test lpSubKey also for empty string value
+	if(lpSubKey && *lpSubKey)
 		sprintf(sKey,"%s\\%s", hKey2String(hKey), lpSubKey);
 	else
 		sprintf(sKey,"%s", hKey2String(hKey));

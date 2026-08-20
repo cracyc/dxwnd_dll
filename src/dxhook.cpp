@@ -89,6 +89,34 @@ static void HookHints(int);
 #include <tlhelp32.h>
 #include <Psapi.h>
 
+BOOL GetTargetDirA(char *myPathA, int len)
+{
+	typedef DWORD (WINAPI *GetModuleFileNameA_Type)(HMODULE, LPSTR, DWORD);
+	extern GetModuleFileNameA_Type pGetModuleFileNameA;
+	(*pGetModuleFileNameA)(NULL, myPathA, len);
+	char *p = myPathA + strlen(myPathA);
+	while((*p != '\\') && (p > myPathA)) p--;
+	if(*p == '\\') {
+		*p=0;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+BOOL GetTargetDirW(WCHAR *myPathW, int len)
+{
+	typedef DWORD (WINAPI *GetModuleFileNameW_Type)(HMODULE, LPWSTR, DWORD);
+	extern GetModuleFileNameW_Type pGetModuleFileNameW;
+	(*pGetModuleFileNameW)(NULL, myPathW, len);
+	WCHAR *p = myPathW + wcslen(myPathW);
+	while((*p != L'\\') && (p > myPathW)) p--;
+	if(*p == L'\\') {
+		*p=0;
+		return TRUE;
+	}
+	return FALSE;
+}
+
 DWORD getParentPID(DWORD pid)
 {
     HANDLE h = NULL;

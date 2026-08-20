@@ -2475,7 +2475,13 @@ BOOL WINAPI extSetCursorPos(int x, int y)
 BOOL WINAPI extSetPhysicalCursorPos(int x, int y)
 { return intSetCursorPos("SetPhysicalCursorPos", pSetPhysicalCursorPos, x, y); }
 
-static void FixMessageLParam(ApiArg, LPMSG lpMsg, LPPOINT lpPoint)
+#ifndef GET_X_LPARAM
+// should include <windowsx.h> but ...
+#define GET_X_LPARAM(lp)                        ((int)(short)LOWORD(lp))
+#define GET_Y_LPARAM(lp)                        ((int)(short)HIWORD(lp))
+#endif
+
+static void FixMessageLParam(ApiArg, LPMSG lpMsg)
 {
 	switch(lpMsg->message){
 		case WM_MOUSEMOVE:
@@ -2493,7 +2499,11 @@ static void FixMessageLParam(ApiArg, LPMSG lpMsg, LPPOINT lpPoint)
 		case WM_XBUTTONUP:
 		case WM_XBUTTONDBLCLK:
 		case WM_MOUSEHWHEEL:
-			lpMsg->lParam = MAKELPARAM(lpPoint->x, lpPoint->y);
+			POINT point;
+			point.x = GET_X_LPARAM(lpMsg->lParam);
+			point.y = GET_Y_LPARAM(lpMsg->lParam);
+			dxw.UnmapClient(&point);
+			lpMsg->lParam = MAKELPARAM(point.x, point.y);
 			OutTraceC("%s: fixed lParam=(%d,%d)\n", api, (short)LOWORD(lpMsg->lParam), (short)HIWORD(lpMsg->lParam));
 			break;
 	}
@@ -2587,15 +2597,7 @@ static BOOL WINAPI extPeekMessage(char *api, PeekMessage_Type pPeekMessage, BOOL
 	// so that a loop of failed extractions from queue would keep fixing the last message coordinates. 
 	// Useless though apparently not harmful, a if(res) condition was added here.
 	if(res && dxw.GethWnd() && dxw.MustFixCoordinates){
-		POINT point;
-		//res=(*pGetCursorPos)(&point); // can't do this. Why?
-		point = lpMsg->pt;
-
-		point=dxw.ScreenToClient(point);
-		point=dxw.FixCursorPos(point);
-		OutTraceC("%s: FIXED pos=(%d,%d)->(%d,%d)\n", api, lpMsg->pt.x, lpMsg->pt.y, point.x, point.y);
-		lpMsg->pt = point;
-		if(dxw.dwFlags12 & FIXMOUSELPARAM) FixMessageLParam(ApiRef, lpMsg, &point);
+		if(dxw.dwFlags12 & FIXMOUSELPARAM) FixMessageLParam(ApiRef, lpMsg);
 	}
 
 	// perform hot keys processing on messages that would be deleted otherwise ...
@@ -2625,7 +2627,6 @@ BOOL WINAPI extPeekMessageW(LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMs
 
 static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, BOOL isAnsi, LPMSG lpMsg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax){
 	BOOL res;
-	POINT point;
 
 	// v2.06.14: used in several racing games of "NASCAR Revolution" series.
 	if(dxw.dwFlags20 & GETALLMESSAGES) {
@@ -2711,12 +2712,7 @@ static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, BOOL isAns
 	}
 
 	if(dxw.MustFixMouse){
-		point = lpMsg->pt;
-		point=dxw.ScreenToClient(point);
-		point=dxw.FixCursorPos(point);
-		OutTraceC("%s: FIXED pos=(%d,%d)->(%d,%d)\n", ApiRef, lpMsg->pt.x, lpMsg->pt.y, point.x, point.y);
-		lpMsg->pt = point;
-		if(dxw.dwFlags12 & FIXMOUSELPARAM) FixMessageLParam(ApiRef, lpMsg, &point);
+		if(dxw.dwFlags12 & FIXMOUSELPARAM) FixMessageLParam(ApiRef, lpMsg);
 	}
 
 	if (lpMsg->message == WM_SYSKEYDOWN) {
@@ -4062,7 +4058,7 @@ LRESULT WINAPI extCallWindowProcCommon(char *api, CallWindowProc_Type pCallWindo
 	}
 #endif
 
-	if(!FixWindowProc(api, hwnd, Msg, &wParam, &lParam, &res)) return res;
+	if(!FixWindowProc(api, hwnd, Msg, &wParam, &lParam, &res, TRUE)) return res;
 
 	//res = (*pCallWindowProc)(lpPrevWndFunc, hwnd, Msg, wParam, lParam);
 	if((dxw.dwFlags11 & CUSTOMLOCALE) && ((UINT_PTR)lpPrevWndFunc != (UINT_PTR)TopLevelWindowProcEx))
@@ -4097,7 +4093,7 @@ static LRESULT WINAPI DefWindowProcCommon(ApiArg, DefWindowProc_Type pDefWindowP
 		}
 	}
 
-	if(!FixWindowProc(api, hwnd, Msg, &wParam, &lParam, &res)) return res;
+	if(!FixWindowProc(api, hwnd, Msg, &wParam, &lParam, &res, FALSE)) return res;
 
 	// keep it simple ... works with @#@"Aoi Sora no Neosphere"
 	res = (*pDefWindowProc)(hwnd, Msg, wParam, lParam);
@@ -6281,6 +6277,11 @@ BOOL WINAPI extIsZoomed(HWND hWnd)
 
 	ret = (*pIsZoomed)(hWnd);
 	OutTraceGDI("%s: hwnd=%#x ret=%#x\n", ApiRef, hWnd, ret);
+
+	if((dxw.dwFlags20 & SETZOOMED) && (hWnd == dxw.GethWnd()) && dxw.IsFullScreen() && !ret) {
+		OutTraceGDI("%s: SETZOOMED ret=TRUE\n", ApiRef);
+		ret = TRUE;
+	}
 
 	// v2.06.01: commented, ret = TRUE prevents "Tie Break Tennis 2" main task to run.
 	//if(dxw.IsFullScreen()){

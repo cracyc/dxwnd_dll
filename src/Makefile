@@ -124,6 +124,7 @@ OBJS = \
     $(OUTDIR)\hdsetup.obj \
     $(OUTDIR)\hdxgi.obj \
     $(OUTDIR)\kernel32.heap.obj \
+    $(OUTDIR)\kernel32.profiles.obj \
     $(OUTDIR)\helpmsgs.obj \
     $(OUTDIR)\hexdump.obj \
     $(OUTDIR)\hidedm.obj \
