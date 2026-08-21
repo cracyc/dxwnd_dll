@@ -215,6 +215,7 @@ BOOL CTabTweaks::OnInitDialog()
 		{ "FIXGNOMEMOVIES",		"patch:FixG-NomeMovies", 0, offset(m_FixGNomeMovies) },
 		{ "NOPALETTEANIMATION",	"patch:NoPaletteAnimation", 0, offset(m_NoPaletteAnimation) },
 		{ "FORCENOPAGELOCK",	"ddraw:ForceNoPageLock", 0, offset(m_ForceNoPageLock) },
+		{ "SETZOOMED",			"win:SetZoomed", 0, offset(m_SetZoomed) },
 		{ NULL, NULL, NULL, NULL }  
 	};
 	// build the tweaks category list

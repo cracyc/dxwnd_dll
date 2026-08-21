@@ -157,14 +157,17 @@ static char *RemapIniPathA(LPCSTR lpFileName, char *lpNewPath)
 {
 	strcpy(lpNewPath, GetFakeWinDirA());
 	strcat(lpNewPath, "\\");
-	// v2.06.08: neutralize registry remapping for Control.ini, System.ini and Winfile.ini
-	if(!_stricmp(lpFileName, "Control.ini")) strcat(lpNewPath, ".Control.ini");
-	else
-	if(!_stricmp(lpFileName, "System.ini")) strcat(lpNewPath, ".System.ini");
-	else
-	if(!_stricmp(lpFileName, "Winfile.ini")) strcat(lpNewPath, ".Winfile.ini");
-	else
-	strcat(lpNewPath, lpFileName ? lpFileName : "Win.ini");
+	if(!lpFileName) strcat(lpNewPath, "Win.ini");
+	else {
+		// v2.06.08: neutralize registry remapping for Control.ini, System.ini and Winfile.ini
+		if(!_stricmp(lpFileName, "Control.ini")) strcat(lpNewPath, ".Control.ini");
+		else
+		if(!_stricmp(lpFileName, "System.ini")) strcat(lpNewPath, ".System.ini");
+		else
+		if(!_stricmp(lpFileName, "Winfile.ini")) strcat(lpNewPath, ".Winfile.ini");
+		else
+		strcat(lpNewPath, lpFileName);
+	}
 	return lpNewPath;
 }
 
@@ -172,14 +175,17 @@ static WCHAR *RemapIniPathW(LPCWSTR lpFileName, WCHAR *lpNewPath)
 {
 	wcscpy(lpNewPath, GetFakeWinDirW());
 	wcscat(lpNewPath, L"\\");
-	// v2.06.08: neutralize registry remapping for Control.ini, System.ini and Winfile.ini
-	if(!_wcsicmp(lpFileName, L"Control.ini")) wcscat(lpNewPath, L".Control.ini");
-	else
-	if(!_wcsicmp(lpFileName, L"System.ini")) wcscat(lpNewPath, L".System.ini");
-	else
-	if(!_wcsicmp(lpFileName, L"Winfile.ini")) wcscat(lpNewPath, L".Winfile.ini");
-	else
-	wcscat(lpNewPath, lpFileName ? lpFileName : L"Win.ini");
+	if(!lpFileName) wcscat(lpNewPath, L"Win.ini");
+	else {
+		// v2.06.08: neutralize registry remapping for Control.ini, System.ini and Winfile.ini
+		if(!_wcsicmp(lpFileName, L"Control.ini")) wcscat(lpNewPath, L".Control.ini");
+		else
+		if(!_wcsicmp(lpFileName, L"System.ini")) wcscat(lpNewPath, L".System.ini");
+		else
+		if(!_wcsicmp(lpFileName, L"Winfile.ini")) wcscat(lpNewPath, L".Winfile.ini");
+		else
+		wcscat(lpNewPath, lpFileName);
+	}
 	return lpNewPath;
 }
 
@@ -190,17 +196,24 @@ UINT WINAPI extGetPrivateProfileIntA(LPCTSTR lpAppName, LPCTSTR lpKeyName, INT n
 	DWORD ret;
 	ApiName("GetPrivateProfileIntA");
 	char lpNewPath[MAX_PATH];
+	LPCSTR origFileName = lpFileName;
+	BOOL fallBack = FALSE;
 	OutTraceSYS("%s: app=\"%s\" key=\"%s\" default=%d filename=\"%s\"\n", ApiRef, lpAppName, lpKeyName, nDefault, lpFileName);
 	// v2.05.19: safeguard against possibly NULL lpFileName
 	if((dxw.dwFlags11 & REMAPSYSFOLDERS) && isRelativePathA(lpFileName)){
 		lpFileName = RemapIniPathA(lpFileName, lpNewPath);
 		OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, lpFileName);
+		fallBack = TRUE;
 	}
 	// v2.05.19: safeguard against possibly NULL lpFileName
 	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) && lpFileName) {
 		lpFileName = dxwTranslatePathA(lpFileName, NULL);
 	}
 	ret = (*pGetPrivateProfileIntA)(lpAppName, lpKeyName, nDefault, lpFileName);
+	if(fallBack && (nDefault == ret)){
+		OutTraceSYS("%s: FALLBACK\n", ApiRef);
+		ret = (*pGetPrivateProfileIntA)(lpAppName, lpKeyName, nDefault, origFileName);
+	}
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
@@ -210,17 +223,24 @@ UINT WINAPI extGetPrivateProfileIntW(LPCWSTR lpAppName, LPCWSTR lpKeyName, INT n
 	DWORD ret;
 	ApiName("GetPrivateProfileIntW");
 	WCHAR lpNewPath[MAX_PATH];
+	LPCWSTR origFileName = lpFileName;
+	BOOL fallBack = FALSE;
 	OutTraceSYS("%s: app=\"%ls\" key=\"%ls\" default=%d filename=\"%ls\"\n", ApiRef, lpAppName, lpKeyName, nDefault, lpFileName);
 	// v2.05.19: safeguard against possibly NULL lpFileName
 	if((dxw.dwFlags11 & REMAPSYSFOLDERS) && isRelativePathW(lpFileName)){
 		lpFileName = RemapIniPathW(lpFileName, lpNewPath);
 		OutTraceDW("%s: remapped path=\"%ls\"\n", ApiRef, lpFileName);
+		fallBack = TRUE;
 	}
 	// v2.05.19: safeguard against possibly NULL lpFileName
 	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) && lpFileName) {
 		lpFileName = dxwTranslatePathW(lpFileName, NULL);
 	}
 	ret = (*pGetPrivateProfileIntW)(lpAppName, lpKeyName, nDefault, lpFileName);
+	if(fallBack && (nDefault == ret)){
+		OutTraceSYS("%s: FALLBACK\n", ApiRef);
+		ret = (*pGetPrivateProfileIntW)(lpAppName, lpKeyName, nDefault, origFileName);
+	}
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
@@ -230,17 +250,28 @@ DWORD WINAPI extGetPrivateProfileStringA(LPCSTR lpAppName, LPCSTR lpKeyName, LPC
 	DWORD ret;
 	ApiName("GetPrivateProfileStringA");
 	char lpNewPath[MAX_PATH];
+	LPCSTR origFileName = lpFileName;
+	BOOL fallBack = FALSE;
 	OutTraceSYS("%s: app=%s key=%s default=\"%s\" size=%d filename=\"%s\"\n", ApiRef, lpAppName, lpKeyName, lpDefault, nSize, lpFileName);
 	// v2.05.19: safeguard against possibly NULL lpFileName
 	if((dxw.dwFlags11 & REMAPSYSFOLDERS) && isRelativePathA(lpFileName)){
 		lpFileName = RemapIniPathA(lpFileName, lpNewPath);
 		OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, lpFileName);
+		fallBack = TRUE;
 	}
 	// v2.05.19: safeguard against possibly NULL lpFileName
 	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) && lpFileName) {
 		lpFileName = dxwTranslatePathA(lpFileName, NULL);
 	}
 	ret = (*pGetPrivateProfileStringA)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, lpFileName);
+	if(!lpDefault) lpDefault = "";
+	if(fallBack) {
+		if(!lpDefault) lpDefault = "";
+		if(!strcmp(lpDefault, lpReturnedString)){
+			OutTraceSYS("%s: FALLBACK\n", ApiRef);
+			ret = (*pGetPrivateProfileStringA)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, origFileName);
+		}
+	}
 	OutTraceSYS("%s: ret=%d retstring=\"%s\"\n", ApiRef, ret, lpReturnedString);
 
 #ifdef DXWESCAPEDINIENTRIES
@@ -261,17 +292,27 @@ DWORD WINAPI extGetPrivateProfileStringW(LPCWSTR lpAppName, LPCWSTR lpKeyName, L
 	DWORD ret;
 	ApiName("GetPrivateProfileStringW");
 	WCHAR lpNewPath[MAX_PATH];
+	LPCWSTR origFileName = lpFileName;
+	BOOL fallBack = FALSE;
 	OutTraceSYS("%s: app=\"%ls\" key=\"%ls\" default=\"%ls\" size=%d filename=\"%ls\"\n", ApiRef, lpAppName, lpKeyName, lpDefault, nSize, lpFileName);
 	// v2.05.19: safeguard against possibly NULL lpFileName
 	if((dxw.dwFlags11 & REMAPSYSFOLDERS) && isRelativePathW(lpFileName)){
 		lpFileName = RemapIniPathW(lpFileName, lpNewPath);
 		OutTraceDW("%s: remapped path=\"%ls\"\n", ApiRef, lpFileName);
+		fallBack = TRUE;
 	}
 	// v2.05.19: safeguard against possibly NULL lpFileName
 	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) && lpFileName) {
 		lpFileName = dxwTranslatePathW(lpFileName, NULL);
 	}
 	ret = (*pGetPrivateProfileStringW)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, lpFileName);
+	if(fallBack) {
+		if(!lpDefault) lpDefault=L"";
+		if(!wcscmp(lpDefault, lpReturnedString)){
+			OutTraceSYS("%s: FALLBACK\n", ApiRef);
+			ret = (*pGetPrivateProfileStringW)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, origFileName);
+		}
+	}
 	OutTraceSYS("%s: ret=%#x retstring=\"%ls\"\n", ApiRef, ret, lpReturnedString);
 
 #ifdef DXWESCAPEDINIENTRIES
@@ -297,6 +338,10 @@ UINT WINAPI extGetProfileIntA(LPCTSTR lpAppName, LPCTSTR lpKeyName, INT nDefault
 		RemapIniPathA(NULL, lpNewPath);
 		OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, lpNewPath);
 		ret = (*pGetPrivateProfileIntA)(lpAppName, lpKeyName, nDefault, lpNewPath);
+		if(nDefault == ret){
+			OutTraceSYS("%s: FALLBACK\n", ApiRef);
+			ret = (*pGetProfileIntA)(lpAppName, lpKeyName, nDefault);
+		}
 	}
 	else {
 		ret = (*pGetProfileIntA)(lpAppName, lpKeyName, nDefault);
@@ -314,6 +359,10 @@ UINT WINAPI extGetProfileIntW(LPCWSTR lpAppName, LPCWSTR lpKeyName, INT nDefault
 		RemapIniPathW(NULL, lpNewPath);
 		OutTraceDW("%s: remapped path=\"%ls\"\n", ApiRef, lpNewPath);
 		ret = (*pGetPrivateProfileIntW)(lpAppName, lpKeyName, nDefault, lpNewPath);
+		if(nDefault == ret){
+			OutTraceSYS("%s: FALLBACK\n", ApiRef);
+			ret = (*pGetProfileIntW)(lpAppName, lpKeyName, nDefault);
+		}
 	}
 	else {
 		ret = (*pGetProfileIntW)(lpAppName, lpKeyName, nDefault);
@@ -332,6 +381,10 @@ DWORD WINAPI extGetProfileStringA(LPCSTR lpAppName, LPCSTR lpKeyName, LPCSTR lpD
 		RemapIniPathA(NULL, lpNewPath);
 		OutTraceDW("%s: remapped path=\"%s\"\n", ApiRef, lpNewPath);
 		ret = (*pGetPrivateProfileStringA)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, lpNewPath);
+		if(lpDefault && !strcmp(lpDefault, lpReturnedString)){
+			OutTraceSYS("%s: FALLBACK\n", ApiRef);
+			ret = (*pGetProfileStringA)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize);
+		}
 #ifdef DXWESCAPEDINIENTRIES
 		if((dxw.dwFlags20 & ESCAPEDINIFILES) && ret){
 			if(strcmp(lpReturnedString, lpDefault)){
@@ -361,6 +414,10 @@ DWORD WINAPI extGetProfileStringW(LPCWSTR lpAppName, LPCWSTR lpKeyName, LPCWSTR 
 		RemapIniPathW(NULL, lpNewPath);
 		OutTraceDW("%s: remapped path=\"%ls\"\n", ApiRef, lpNewPath);
 		ret = (*pGetPrivateProfileStringW)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, lpNewPath);
+		if(lpDefault && !wcscmp(lpDefault, lpReturnedString)){
+			OutTraceSYS("%s: FALLBACK\n", ApiRef);
+			ret = (*pGetProfileStringW)(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize);
+		}
 #ifdef DXWESCAPEDINIENTRIES
 		if((dxw.dwFlags20 & ESCAPEDINIFILES) && ret){
 			if(wcscmp(lpReturnedString, lpDefault)){

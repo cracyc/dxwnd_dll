@@ -387,7 +387,7 @@ void SetPrivateMapFromDialog(PRIVATEMAP *p, CTargetDlg *dlg)
 		CGameIcons *ic = new(CGameIcons);
 		char *hex = ic->Serialize(dlg->m_Icon);
 		if(hex){
-			p->IconString = (CString)hex;
+			p->IconString.SetString(hex);
 			p->Icon = dlg->m_Icon; 
 			free(hex);
 		}
@@ -1291,6 +1291,7 @@ void SetTargetFromDlg(TARGETMAP *t, CTargetDlg *dlg)
 	if(dlg->m_ResetMultiVolume) t->flags18 |= RESETMULTIVOLUME;
 	if(dlg->m_RemapRootFolder) t->flags19 |= REMAPROOTFOLDER;
 	if(dlg->m_HandleCDLock) t->flags20 |= HANDLECDLOCK;
+	if(dlg->m_EscapedIniFiles) t->flags20 |= ESCAPEDINIFILES;
 	if(dlg->m_SetCDAudioPath) t->flags14 |= SETCDAUDIOPATH;
 	if(dlg->m_CDHack) t->flags17 |= CDHACK;
 	if(dlg->m_IsDOS) t->flags19 |= ISDOSEXECUTABLE;
@@ -1305,6 +1306,7 @@ void SetTargetFromDlg(TARGETMAP *t, CTargetDlg *dlg)
 	if(dlg->m_FixGNomeMovies) t->flags20 |= FIXGNOMEMOVIES;
 	if(dlg->m_NoPaletteAnimation) t->flags20 |= NOPALETTEANIMATION;
 	if(dlg->m_ForceNoPageLock) t->flags20 |= FORCENOPAGELOCK;
+	if(dlg->m_SetZoomed) t->flags20 |= SETZOOMED;
 	if(dlg->m_SetResolution) t->flags19 |= SETRESOLUTION;
 
 	if(dlg->m_DIBPalette) t->flags19 |= DIBPALETTE;
@@ -2135,6 +2137,7 @@ static void SetDlgFromTarget(TARGETMAP *t, CTargetDlg *dlg)
 	dlg->m_ResetMultiVolume = t->flags18 & RESETMULTIVOLUME ? 1 : 0;
 	dlg->m_RemapRootFolder = t->flags19 & REMAPROOTFOLDER ? 1 : 0;
 	dlg->m_HandleCDLock = t->flags20 & HANDLECDLOCK ? 1 : 0;
+	dlg->m_EscapedIniFiles = t->flags20 & ESCAPEDINIFILES ? 1 : 0;
 	dlg->m_SetCDAudioPath = t->flags14 & SETCDAUDIOPATH ? 1 : 0;
 	dlg->m_CDHack = t->flags17 & CDHACK ? 1 : 0;
 	dlg->m_IsDOS = t->flags19 & ISDOSEXECUTABLE ? 1 : 0;
@@ -2149,6 +2152,7 @@ static void SetDlgFromTarget(TARGETMAP *t, CTargetDlg *dlg)
 	dlg->m_FixGNomeMovies = t->flags20 & FIXGNOMEMOVIES ? 1 : 0;
 	dlg->m_NoPaletteAnimation = t->flags20 & NOPALETTEANIMATION ? 1 : 0;
 	dlg->m_ForceNoPageLock = t->flags20 & FORCENOPAGELOCK ? 1 : 0;
+	dlg->m_SetZoomed = t->flags20 & SETZOOMED ? 1 : 0;
 	dlg->m_SetResolution = t->flags19 & SETRESOLUTION ? 1 : 0;
 	dlg->m_DIBPalette = t->flags19 & DIBPALETTE ? 1 : 0;
 	dlg->m_PosX = t->posx;
@@ -3999,22 +4003,20 @@ void CDxwndhostView::OnViewLogTail()
 		char path[MAX_PATH];
 		GetTempPathA(MAX_PATH, path);
 		FilePath = (CString)path;
-		FilePath.Append("\\dxwnd.log");
 	}
 	else {
 		if(PrivateMaps[i].startfolder[0]){
 			FilePath = PrivateMaps[i].startfolder;
-			FilePath.Append("\\dxwnd.log");
 		}
 		else {
 			FilePath = TargetMaps[i].path;
 			len=FilePath.ReverseFind('\\');	
 			if (len==0) return;
 			FilePath.Truncate(len);
-			FilePath.Append("\\dxwnd.log");
 		}
 	}
 
+	FilePath.Append("\\dxwnd.log");
 	ShellExecute(NULL, "open", "tail", "-98 /f /w \""+FilePath+"\"", NULL, SW_SHOW);
 }
 
@@ -5885,20 +5887,21 @@ LPCWSTR Ascii2Wide(LPCSTR lpstr)
 
 void SetWineShims(char *path, TARGETMAP *t)
 {
-	if(t->flags2 & INIT8BPP) {
+	// for 8 bit colors the key data would be L"~ 256COLOR"
+	// for 16 bit colors the key data would be L"~ 16BITCOLOR"
+	if(t->flags2 & (INIT8BPP | INIT16BPP)) {
 		OutTrace("Setting 256COLOR key in registry for %s\n", path);
 		HKEY hKey;
 		LSTATUS stat = RegOpenKeyA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers", &hKey);
 		if(stat != ERROR_SUCCESS) OutTrace("RegOpenKeyA ERROR ret=%d\n", stat);
 		OutTrace("hkey=%#x\n", hKey);
-		WCHAR *wData = L"~ 256COLOR";
+		WCHAR *wData = (t->flags2 & INIT8BPP) ? L"~ 256COLOR" : L"~ 16BITCOLOR";
 		stat = RegSetKeyValueW(hKey, NULL, Ascii2Wide(path), REG_SZ, wData, 20);
 		if(stat != ERROR_SUCCESS) OutTrace("RegSetKeyValueA ERROR ret=%d\n", stat);
 		stat = RegFlushKey(hKey);
 		if(stat != ERROR_SUCCESS) OutTrace("RegFlushKey ERROR ret=%d\n", stat);
 		RegCloseKey(hKey);
 	}
-	// for 16 bit colors the key data would be L"~ 16BITCOLOR"
 }
 
 void RunTarget(int runmode, int i, TARGETMAP *tm, PRIVATEMAP *pm, TARGETMAP *TargetMaps)
@@ -5982,8 +5985,14 @@ void RunTarget(int runmode, int i, TARGETMAP *tm, PRIVATEMAP *pm, TARGETMAP *Tar
 		OutTrace("exepath=%s\n", exepath);
 		//------- otvdmw settings
 		char otvdmIniPath[MAX_PATH];
+		char dxwWindowsPath[MAX_PATH+1];
 		_snprintf(otvdmIniPath, MAX_PATH, "%swinevdm\\otvdm.ini", GetDxWndPath());
 		WritePrivateProfileString("otvdm", "DIBPalette", (tm->flags19 & DIBPALETTE) ? "1" : "0", otvdmIniPath);
+		if(tm->flags11 & REMAPSYSFOLDERS)
+			sprintf(dxwWindowsPath, "%s\\Windows", folderpath);
+		else
+			strcpy(dxwWindowsPath, "");
+		WritePrivateProfileString("otvdm", "WINDIR", dxwWindowsPath, otvdmIniPath);
 	}
 	else {
 		if(!(pm->startfolder[0])){

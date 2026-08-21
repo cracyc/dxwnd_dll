@@ -52,6 +52,7 @@ void CTabIO::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_RESETMULTIVOLUME, cTarget->m_ResetMultiVolume);
 	DDX_Check(pDX, IDC_REMAPROOTFOLDER, cTarget->m_RemapRootFolder);
 	DDX_Check(pDX, IDC_HANDLECDLOCK, cTarget->m_HandleCDLock);
+	DDX_Check(pDX, IDC_ESCAPEDINIFILES, cTarget->m_EscapedIniFiles);
 	DDX_Check(pDX, IDC_SETCDAUDIOPATH, cTarget->m_SetCDAudioPath);
 	DDX_Check(pDX, IDC_CDHACK, cTarget->m_CDHack);
 	DDX_Text(pDX, IDC_FAKEHDPATH, cTarget->m_FakeHDPath);
