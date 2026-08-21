@@ -740,6 +740,7 @@ void CTargetDlg::InitializeDefaults()
 	m_ResetMultiVolume = FALSE;
 	m_RemapRootFolder = FALSE;
 	m_HandleCDLock = FALSE;
+	m_EscapedIniFiles = FALSE;
 	m_SetCDAudioPath = FALSE;
 	m_CDHack = FALSE;
 	m_IsWin16 = FALSE;
@@ -754,6 +755,7 @@ void CTargetDlg::InitializeDefaults()
 	m_FixGNomeMovies = FALSE;
 	m_NoPaletteAnimation = FALSE;
 	m_ForceNoPageLock = FALSE;
+	m_SetZoomed = FALSE;
 	m_SetResolution = FALSE;
 	m_DIBPalette = FALSE;
 	m_ClipperMode = 0;

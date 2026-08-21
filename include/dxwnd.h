@@ -677,12 +677,17 @@
 #define SUPPRESSBLTFX		0x00000020 // zero-es the lpddbltfx->dwDDFX flags
 #define EMULATEXMIRRORING	0x00000040 // emulates a X mirrored Bld using StretchBlt
 #define EMULATEYMIRRORING	0x00000080 // emulates a Y mirrored Bld using StretchBlt
-#define GETALLMESSAGES		0x00000100 // ....
+#define GETALLMESSAGES		0x00000100 // forces hwnd=0 in GetMessageA/W wrappers
 #define NONANTIALIASEDFONTS	0x00000200 // forces NONANTIALIASED_QUALITY fonts
 #define MCISINGLETHREADED	0x00000400 // run all mciSendCommand instances from a single thread
 #define FINDCLOSECHECK		0x00000800 // enables a check for FindClose with wrong arguments (needed for "iM1A2 Abrams")
 #define ADDSHAREDDIRPATH	0x00001000 // adds the DxWnd\shared folder to the libraries search path
 #define FIXGNOMEMOVIES		0x00002000 // recovers the truncated negative coordinates in G-Nome movies
+#define NOPALETTEANIMATION	0x00004000 // bypass the GDI32 AnmatePalette call
+#define FILTERADAPTERWCLASS	0x00008000 // process the messages from the new SystemUserAdapterWindowCLass and UserAdapterWindowCLass
+#define FORCENOPAGELOCK		0x00010000 // forces dwCaps2 DDCAPS2_NOPAGELOCKREQUIRED flag
+#define ESCAPEDINIFILES		0x00020000 // treats ini files as the fake-registry entries
+#define SETZOOMED			0x00040000 // forces IsZoomed() to return TRUE on the main window
 
 // debug Dflags DWORD:
 #define CPUVENDORMASK		0x00000007

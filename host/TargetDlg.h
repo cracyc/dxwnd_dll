@@ -665,6 +665,7 @@ public:
 	BOOL	m_ResetMultiVolume;
 	BOOL	m_RemapRootFolder;
 	BOOL	m_HandleCDLock;
+	BOOL	m_EscapedIniFiles;
 	BOOL	m_SetCDAudioPath;
 	BOOL	m_CDHack;
 	BOOL	m_IsWin16;
@@ -679,6 +680,7 @@ public:
 	BOOL	m_FixGNomeMovies;
 	BOOL	m_NoPaletteAnimation;
 	BOOL	m_ForceNoPageLock;
+	BOOL	m_SetZoomed;
 	BOOL	m_SetResolution;
 	BOOL	m_DIBPalette;
 	int		m_ZBufferMode;

@@ -1267,7 +1267,7 @@ static VOID fixLimitSpace(ApiArg, LPDWORD lpSectorsPerCluster, LPDWORD lpBytesPe
 		DWORD BytesXCluster = *lpBytesPerSector * *lpSectorsPerCluster;
 		char sInitPath[MAX_PATH+1];
 		sprintf(sInitPath, "%sdxwnd.ini", GetDxWndPath()); 
-		dwFreeBytes = GetPrivateProfileInt("window", "freedisk", 0, sInitPath);
+		dwFreeBytes = (*pGetPrivateProfileIntA)("window", "freedisk", 0, sInitPath);
 		if(dwFreeBytes) {
 			// try to define dwFreeBytes of free space in a hard disk 20% bigger
 			if(BytesXCluster){
@@ -5253,7 +5253,16 @@ HGLOBAL WINAPI extGlobalFree(HGLOBAL hMem)
 char *GetFakeWinDirA()
 {
 	static char myPathA[MAX_PATH];
-	(*pGetModuleFileNameA)(NULL, myPathA, MAX_PATH);
+	if(dxw.isWineControlled){
+		char keyName[8];
+		char sInitPath[MAX_PATH+1];
+		sprintf(sInitPath, "%sdxwnd.ini", GetDxWndPath()); 
+		sprintf(keyName, "path%d", dxw.dwIndex);
+		(*pGetPrivateProfileStringA)("target", keyName, "", myPathA, MAX_PATH, sInitPath);
+	}
+	else {
+		(*pGetModuleFileNameA)(NULL, myPathA, MAX_PATH);
+	}
 	//PathRemoveFileSpecA(myPathA);
 	char *p = myPathA + strlen(myPathA);
 	while((*p != '\\') && (p > myPathA)) p--;
@@ -5266,7 +5275,16 @@ char *GetFakeWinDirA()
 WCHAR *GetFakeWinDirW()
 {
 	static WCHAR myPathW[MAX_PATH];
-	(*pGetModuleFileNameW)(NULL, myPathW, MAX_PATH);
+	if(dxw.isWineControlled){
+		WCHAR keyName[8];
+		WCHAR sInitPath[MAX_PATH+1];
+		swprintf(sInitPath, MAX_PATH, L"%sdxwnd.ini", GetDxWndPath()); 
+		swprintf(keyName, MAX_PATH, L"path%d", dxw.dwIndex);
+		(*pGetPrivateProfileStringW)(L"target", keyName, L"", myPathW, MAX_PATH, sInitPath);
+	}
+	else {
+		(*pGetModuleFileNameW)(NULL, myPathW, MAX_PATH);
+	}
 	//PathRemoveFileSpecW(myPathW);
 	WCHAR *p = myPathW + wcslen(myPathW);
 	while((*p != L'\\') && (p > myPathW)) p--;
