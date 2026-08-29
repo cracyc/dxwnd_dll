@@ -4161,7 +4161,19 @@ HBITMAP WINAPI extCreateDIBSection(HDC hdc, const BITMAPINFO *pbmi, UINT iUsage,
 				sdc.GetPrimaryDC(hdc);
 				ret=(*pCreateDIBSection)(sdc.GetHdc(), pbmi, iUsage, ppvBits, hSection, dwOffset);
 				sdc.PutPrimaryDC(hdc, FALSE);
-				break;			
+				break;	
+			case GDIMODE_STRETCHED: // v2.06.16 ???
+				{
+				BITMAPINFO bi;
+				memcpy(&bi, pbmi, sizeof(BITMAPINFO));
+				int h = bi.bmiHeader.biHeight;
+				int w = bi.bmiHeader.biWidth;
+				dxw.MapClient(&w, &h);
+				bi.bmiHeader.biHeight = h;
+				bi.bmiHeader.biWidth = w;
+				ret=(*pCreateDIBSection)(hdc, &bi, iUsage, ppvBits, hSection, dwOffset); 
+				}
+				break;
 			default:
 				ret=(*pCreateDIBSection)(hdc, pbmi, iUsage, ppvBits, hSection, dwOffset);
 				break;
@@ -4172,8 +4184,6 @@ HBITMAP WINAPI extCreateDIBSection(HDC hdc, const BITMAPINFO *pbmi, UINT iUsage,
 	}
 
 	// v2.06.14: On Win8.1 the operation fails but the error code is 0 ...
-	//if(!ret && (GetLastError() == ERROR_INVALID_PARAMETER) && (pbmi->bmiHeader.biCompression == 3)){
-	//if(!ret && (pbmi->bmiHeader.biCompression == 3)){
 	if(!ret && (pbmi->bmiHeader.biCompression != BI_RGB)){
 		OutTraceDW("%s: suppress DIB compression\n", ApiRef);
 		(DWORD)(pbmi->bmiHeader.biCompression) = BI_RGB;
@@ -5106,6 +5116,28 @@ HGDIOBJ WINAPI extSelectObject(HDC hdc, HGDIOBJ hgdiobj)
 	}
 
 	switch(dwObjectType){
+		// v2.06.16: scale mapped regions
+		// scaling is necessary for #@# "Microsoft Freecell"
+		case OBJ_REGION:
+			if(dxw.IsToRemap(hdc)){
+				switch(dxw.GDIEmulationMode){
+					case GDIMODE_STRETCHED: 
+						HRGN hrgnScaled;
+						hrgnScaled = dxw.MapRegion(ApiRef, (HRGN)hgdiobj);
+						ret = (*pSelectObject)(hdc, hrgnScaled);
+						OutTraceGDI("%s: ret=%d(%s)\n", ApiRef, ret, ExplainRgnType((int)ret));
+						(*pDeleteObject)(hrgnScaled);
+						return ret;		
+						break;
+					case GDIMODE_SHAREDDC: 
+						//hdc = sdc.GetPrimaryDC(hdc);
+						//break;
+					case GDIMODE_EMULATED:
+					default:
+						break;
+				}
+			}
+			break;
 		case OBJ_FONT: 
 			{
 				if((dxw.dwFlags1 & FIXTEXTOUT) && (GetObjectType(hdc)==OBJ_DC)){

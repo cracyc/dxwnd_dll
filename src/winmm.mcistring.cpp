@@ -354,9 +354,9 @@ MCIERROR mciSendMovieString(ApiArg, LPCTSTR lpszCommand, LPTSTR lpszReturnString
 		// partially fixes the displacement of "Felix the Cat" Felix and Pinky intro movies.
 
 		// @#@ two spaces found in "Age of Empires Gold Edition"
+		// v2.06.16: doubled spaces eliminated in mciSendString routine
 		if(! (dxw.dwFlags5 & PUSHACTIVEMOVIE)){
-			if ((sscanf(lpszCommand, "window %s handle %d", dxw.sMovieNickName, &wHandle)==2) ||
-				(sscanf(lpszCommand, "window %s  handle %d", dxw.sMovieNickName, &wHandle)==2)){ 
+			if (sscanf(lpszCommand, "window %s handle %d", dxw.sMovieNickName, &wHandle)==2){ 
 				//sprintf(NewCommand, "window %s handle %d state restore wait", dxw.sMovieNickName, dxw.GethWnd());
 				char newHandle[20];
 				sprintf(newHandle, "%d", dxw.GethWnd());
@@ -1028,7 +1028,7 @@ MCIERROR mciSendAudioString(ApiArg, LPCTSTR lpszCommand, LPTSTR lpszReturnString
 }
 
 // this is really ugly but for christ sake why did anyone use it?!
-MCIERROR WINAPI extmciSendString(ApiArg, LPCTSTR lpszCommand, LPTSTR lpszReturnString, UINT cchReturn, HANDLE hwndCallback)
+MCIERROR WINAPI extmciSendString(ApiArg, LPSTR lpszCommand, LPSTR lpszReturnString, UINT cchReturn, HANDLE hwndCallback)
 {
 #ifndef DXW_NOTRACES
 	if(IsTraceSYS || IsTraceSND){
@@ -1049,7 +1049,20 @@ MCIERROR WINAPI extmciSendString(ApiArg, LPCTSTR lpszCommand, LPTSTR lpszReturnS
 	//char *p = (char *)&(lpszCommand[strlen(lpszCommand)-1]);
 	//for(; *p == ' '; *(p--) = 0) ;
 	//OutTrace("%s: Command=\"%s\"\n", api, lpszCommand);
-
+	// v2.06.16: strip double separation spaces - @#@ "Murder She Wrote"
+	BOOL trimmed = FALSE;
+	for(char *p = (char *)lpszCommand; *p; p++){
+		if((*p == ' ') && (*(p+1) == ' ')){
+			trimmed = TRUE;
+			char *next;
+			for(next = p+1; *next; next++) *(next-1) = *next;
+			*(next-1) = 0;
+		}
+	}
+	if(IsTraceSYS || IsTraceSND){
+		if(trimmed) OutTrace("%s: trimmed Command=\"%s\"\n", api, lpszCommand);
+	}
+	
 	// v2.06.09: tell whether cdaudio or movie ...
 	if(strncmp(lpszCommand, "open ", 5)){ // for all commands except "open"
 		char sCommand[81];

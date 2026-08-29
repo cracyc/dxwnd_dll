@@ -141,6 +141,9 @@ LRESULT CALLBACK extDialogWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPA
 	LRESULT res;
 	static int t = -1;
 	static int iRecursion = 0;
+	BOOL isAnsi = !IsWindowUnicode(hwnd);
+	//DefWindowProc_Type pDefWindowProc = isAnsi ? pDefWindowProcA : pDefWindowProcW;
+	CallWindowProc_Type pCallWindowProc = isAnsi ? pCallWindowProcA : pCallWindowProcW;
 
 	if(iRecursion) {
 		iRecursion=0;
@@ -163,7 +166,7 @@ LRESULT CALLBACK extDialogWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPA
 
 	pWindowProc=dxwws.GetProc(hwnd);
 	if(pWindowProc) {
-		res =(*pCallWindowProcA)(pWindowProc, hwnd, message, wparam, lparam);
+		res =(*pCallWindowProc)(pWindowProc, hwnd, message, wparam, lparam);
 	}
 	else {
 		char *sMsg="ASSERT: DialogWinMsg pWindowProc=NULL !!!";
@@ -181,6 +184,9 @@ LRESULT CALLBACK extChildWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
 	static int i=0;
 	static WINDOWPOS *wp;
 	WNDPROC pWindowProc;
+	BOOL isAnsi = !IsWindowUnicode(hwnd);
+	DefWindowProc_Type pDefWindowProc = isAnsi ? pDefWindowProcA : pDefWindowProcW;
+	CallWindowProc_Type pCallWindowProc = isAnsi ? pCallWindowProcA : pCallWindowProcW;
 
 	OutTraceW("%s: DEBUG hwnd=%#x msg=[%#x]%s(%#x,%#x)\n", ApiRef, hwnd, message, ExplainWinMessage(message), wparam, lparam);
 
@@ -227,10 +233,10 @@ LRESULT CALLBACK extChildWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
 	pWindowProc=dxwws.GetProc(hwnd);
 	
 	// v2.02.82: use CallWindowProc that handles WinProc handles
-	if(pWindowProc) return(*pCallWindowProcA)(pWindowProc, hwnd, message, wparam, lparam);
+	if(pWindowProc) return(*pCallWindowProc)(pWindowProc, hwnd, message, wparam, lparam);
 	// should never get here ....
 	OutTraceDW("%s: no WndProc for CHILD hwnd=%#x\n", ApiRef, hwnd);
-	return DefWindowProc(hwnd, message, wparam, lparam);
+	return (*pDefWindowProc)(hwnd, message, wparam, lparam);
 }
 
 static void dx_UpdatePositionLock(HWND hwnd)
@@ -396,6 +402,24 @@ char *sMCIReason(WPARAM w, char *r)
 	return(r);
 }
 
+static char *sScrollAction(DWORD wp)
+{
+	char *r;
+	switch(wp){
+		case SB_ENDSCROLL: r="ENDSCROLL"; break;
+		case SB_LEFT: r="LEFT"; break;
+		case SB_RIGHT: r="RIGHT"; break;
+		case SB_LINELEFT: r="LINELEFT"; break;
+		case SB_LINERIGHT: r="LINERIGHT"; break;
+		case SB_PAGELEFT: r="PAGELEFT"; break;
+		case SB_PAGERIGHT: r="PAGERIGHT"; break;
+		case SB_THUMBPOSITION: r="THUMBPOSITION"; break;
+		case SB_THUMBTRACK: r="THUMBTRACK"; break;
+		default: r="???"; break;
+	}
+	return r;
+}
+
 #ifndef DXW_NOTRACES
 void ExplainMsg(char *ApiName, BOOL isAnsi, HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
@@ -449,6 +473,10 @@ void ExplainMsg(char *ApiName, BOOL isAnsi, HWND hwnd, UINT Msg, WPARAM wParam, 
 	case MM_MCINOTIFY:
 		sprintf_s(sPos, 512, " devid=%#x reason=%s", lParam, sMCIReason(wParam, sFlags));
 		break;	
+	case WM_HSCROLL:
+	case WM_VSCROLL:
+		sprintf_s(sPos, 512, " action=%s", sScrollAction(wParam));
+		break;
 	}
 	OutTrace("%s[%#x]: WinMsg=[%#x]%s(%#x,%#x) %s\n", ApiName, hwnd, Msg, ExplainWinMessage(Msg), wParam, lParam, sPos);
 }
@@ -731,11 +759,15 @@ LRESULT CALLBACK extWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 	WNDPROC pWindowProc;
 	extern void dxwFixWindowPos(char *, HWND, LPARAM);
 	extern LPRECT lpClipRegion;
+	// v2.06.16: fix ANSI vs. WIDE separation
+	BOOL isAnsi = !IsWindowUnicode(hwnd);
+	DefWindowProc_Type pDefWindowProc = isAnsi ? pDefWindowProcA : pDefWindowProcW;
+	CallWindowProc_Type pCallWindowProc = isAnsi ? pCallWindowProcA : pCallWindowProcW;
 
 #ifndef DXW_NOTRACES
 	if ((IsTraceW) ||
 		(IsTraceSND && (message == MM_MCINOTIFY)))
-		ExplainMsg(ApiRef, TRUE, hwnd, message, wparam, lparam);
+		ExplainMsg(ApiRef, isAnsi, hwnd, message, wparam, lparam);
 #endif
 
 	if(dxw.dwFlags19 & EMULATEWINRESIZE){
@@ -764,7 +796,7 @@ LRESULT CALLBACK extWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 			}
 			else {
 				OutTraceDW("%s[%#x]: DEFAULT WinMsg=[%#x]%s(%#x,%#x)\n", ApiRef, hwnd, message, ExplainWinMessage(message), wparam, lparam);
-				return (*pDefWindowProcA)(hwnd, message, wparam, lparam);
+				return (*pDefWindowProc)(hwnd, message, wparam, lparam);
 			}
 		}
 	}
@@ -775,7 +807,7 @@ LRESULT CALLBACK extWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 	if(dxw.dwFlags2 & FORCEWINRESIZE){ 
 		if(IsWindowMovingMessage(message, wparam)){
 			LRESULT ret;
-			ret = (*pDefWindowProcA)(hwnd, message, wparam, lparam);
+			ret = (*pDefWindowProc)(hwnd, message, wparam, lparam);
 			// v2.04.55: in case of resizing & stretched gdi mode, viewport origins must be updated
 			if(dxw.GDIEmulationMode == GDIMODE_STRETCHED){
 				(*pSetViewportOrgEx)((*pGDIGetDC)(hwnd), 0, 0, NULL);
@@ -800,7 +832,7 @@ LRESULT CALLBACK extWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 		LRESULT ret;
 
 		// v2.02.36: use CallWindowProc that handles WinProc handles
-		ret=(*pCallWindowProcA)(pWindowProc, hwnd, message, wparam, lparam);
+		ret=(*pCallWindowProc)(pWindowProc, hwnd, message, wparam, lparam);
 
 		switch(message){
 			case WM_SIZE:
@@ -827,7 +859,7 @@ LRESULT CALLBACK extWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 			case WM_SETCURSOR:		// shows a different cursor when moving on borders
 			case WM_NCLBUTTONDOWN:	// intercepts mouse down on borders
 			case WM_NCLBUTTONUP:	// intercepts mouse up on borders
-				ret=(*pDefWindowProcA)(hwnd, message, wparam, lparam);
+				ret=(*pDefWindowProc)(hwnd, message, wparam, lparam);
 				break;
 			}
 		}
@@ -842,5 +874,5 @@ LRESULT CALLBACK extWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lp
 	sprintf(sMsg,"ASSERT: WindowProc mismatch hwnd=%#x", hwnd);
 	OutTraceDW("%s: %s\n", ApiRef, sMsg);
 	if (IsAssertEnabled) MessageBox(0, sMsg, "WindowProc", MB_OK | MB_ICONEXCLAMATION);	
-	return (*pDefWindowProcA)(hwnd, message, wparam, lparam);
+	return (*pDefWindowProc)(hwnd, message, wparam, lparam);
 }

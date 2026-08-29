@@ -2289,9 +2289,9 @@ MMRESULT WINAPI extwaveOutGetPosition(HWAVEOUT hwo, LPMMTIME pmmt, UINT cbmmt)
 	return ret;
 }
 
-extern MCIERROR WINAPI extmciSendString(char *, LPCTSTR, LPTSTR, UINT, HANDLE);
+extern MCIERROR WINAPI extmciSendString(char *, LPSTR, LPSTR, UINT, HANDLE);
 
-MCIERROR WINAPI extmciSendStringA(LPCTSTR lpszCommand, LPTSTR lpszReturnString, UINT cchReturn, HANDLE hwndCallback)
+MCIERROR WINAPI extmciSendStringA(LPCSTR lpszCommand, LPSTR lpszReturnString, UINT cchReturn, HANDLE hwndCallback)
 { 
 	ApiName("mciSendStringA");
 	if(IsWithinMCICall) return(*pmciSendStringA)(lpszCommand, lpszReturnString, cchReturn, hwndCallback); // just proxy ...
@@ -2299,10 +2299,10 @@ MCIERROR WINAPI extmciSendStringA(LPCTSTR lpszCommand, LPTSTR lpszReturnString, 
 	if(!strcmp(lpszCommand, "play music notify")) return 0;
 
 	MCIERROR ret;
-	LPCSTR lpszCommandA;
+	LPSTR lpszCommandA;
 	size_t len;
 	len = strlen(lpszCommand);
-	lpszCommandA = (LPCSTR)malloc(len+1);
+	lpszCommandA = (LPSTR)malloc(len+1);
 	strcpy((LPSTR)lpszCommandA, lpszCommand);
 	// v2.04.96: "Fallen Haven" sends uppercase strings ...
 	for(char *p=(char *)lpszCommandA; *p; p++) *p = tolower(*p);
@@ -2317,14 +2317,14 @@ MCIERROR WINAPI extmciSendStringW(LPCWSTR lpszCommand, LPWSTR lpszReturnString, 
 	if(IsWithinMCICall) return(*pmciSendStringW)(lpszCommand, lpszReturnString, cchReturn, hwndCallback); // just proxy ...
 
 	MCIERROR ret;
-	LPCSTR lpszCommandA;
-	LPCSTR lpszReturnStringA; 
+	LPSTR lpszCommandA;
+	LPSTR lpszReturnStringA; 
 	size_t len;
 	BOOL returnsDWord = FALSE;
 	len = wcslen(lpszCommand);
-	lpszCommandA = (LPCSTR)malloc((2*len)+1);
+	lpszCommandA = (LPSTR)malloc((2*len)+1);
 	if(lpszReturnString){
-		lpszReturnStringA = (LPCSTR)malloc((2*cchReturn)+1);
+		lpszReturnStringA = (LPSTR)malloc((2*cchReturn)+1);
 		(char)lpszReturnStringA[0] = 0;
 	}
 	else {
@@ -2346,7 +2346,7 @@ MCIERROR WINAPI extmciSendStringW(LPCWSTR lpszCommand, LPWSTR lpszReturnString, 
 	// fixes F/A 18 Korea".
 	if(!strncmp(lpszCommandA, "status", strlen("status")  && strstr(lpszCommandA, "start position"))) returnsDWord = FALSE;
 
-	ret = extmciSendString(ApiRef, lpszCommandA, (LPTSTR)lpszReturnStringA, cchReturn, hwndCallback); 
+	ret = extmciSendString(ApiRef, lpszCommandA, lpszReturnStringA, cchReturn, hwndCallback); 
 	// v2.04.54 fix: not all retstrings are strings!!
 	// v2.05.92 fix: do not try to convert a null return value.
 	if (lpszReturnStringA) {

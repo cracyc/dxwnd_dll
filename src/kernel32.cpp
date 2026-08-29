@@ -6012,6 +6012,7 @@ static char *sKnownCode(DWORD code)
 BOOL WINAPI extDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpInBuffer, DWORD nInBufferSize, LPVOID lpOutBuffer, DWORD nOutBufferSize, LPDWORD lpBytesReturned, LPOVERLAPPED lpOverlapped)
 {
 	BOOL ret;
+	BOOL fixed = FALSE;
 	ApiName("DeviceIoControl");
 	OutTraceSYS("%s: hdevice=%#x code=%#x(%s) insize=%d outsize=%d\n", 
 		ApiRef, hDevice, dwIoControlCode, sKnownCode(dwIoControlCode), nInBufferSize, nOutBufferSize);
@@ -6066,18 +6067,104 @@ BOOL WINAPI extDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpI
 		OutErrorSYS("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	}
 
-	if(ret && (dwIoControlCode == IOCTL_CDROM_READ_TOC)){
-		PCDROM_TOC pToc = (PCDROM_TOC)lpOutBuffer;
-		PTRACK_DATA pTrack = pToc->TrackData;
-		int nTracks;
-		OutTrace("TOC: len=%d Track:(first=%d last=%d)\n",
-			(WORD)pToc->Length, pToc->FirstTrack, pToc->LastTrack);
-		nTracks = pToc->LastTrack-pToc->FirstTrack;
-		if(nTracks > 0) for(int i=0; i<nTracks; i++){
-			OutTrace("Track %d: ctrl=%#x adr=%#x num=%d address=%#x\n",
-				i+1, pTrack->Control, pTrack->Adr, pTrack->TrackNumber, pTrack->Address);
-			pTrack++;
+	if(dwIoControlCode == IOCTL_CDROM_READ_TOC){
+		if(ret){
+			PCDROM_TOC pToc = (PCDROM_TOC)lpOutBuffer;
+			PTRACK_DATA pTrack = pToc->TrackData;
+			int nTracks;
+			OutTrace("TOC: len=%d Track:(first=%d last=%d)\n",
+				(WORD)pToc->Length, pToc->FirstTrack, pToc->LastTrack);
+			nTracks = pToc->LastTrack-pToc->FirstTrack;
+			if(nTracks > 0) for(int i=0; i<nTracks; i++){
+				OutTrace("Track %d: ctrl=%#x adr=%#x num=%d address=%#x\n",
+					i+1, pTrack->Control, pTrack->Adr, pTrack->TrackNumber, pTrack->Address);
+				pTrack++;
+			}
 		}
+		else if(dxw.dwFlags10 & FAKECDDRIVE){
+			char path[MAX_PATH];
+			FILE *toc;
+			strncpy(path, dxwGetFakeDriverPath(DXW_CD_PATH), MAX_PATH);
+			strncat(path, "\\$TOC", MAX_PATH - strlen("\\$TOC") - 1);
+			toc = fopen(path, "rb");
+			if(toc) {
+				int len = fread(lpOutBuffer, 1, nOutBufferSize, toc); 
+				if(len) {
+					OutTrace("TOC: returning fake TOC data len=%d\n", len);
+					*lpBytesReturned = len;
+					ret = TRUE;
+					fixed = TRUE;
+				}
+				fclose(toc);
+			}
+		}
+	}
+
+	if(dwIoControlCode == IOCTL_CDROM_READ_Q_CHANNEL){
+		if(nInBufferSize == sizeof(CDROM_SUB_Q_DATA_FORMAT)){
+			UCHAR format = ((PCDROM_SUB_Q_DATA_FORMAT)lpInBuffer)->Format;
+			UCHAR track = ((PCDROM_SUB_Q_DATA_FORMAT)lpInBuffer)->Track;
+			OutTrace("< format=%s\n", 
+				format == IOCTL_CDROM_CURRENT_POSITION ? "CDROM_CURRENT_POSITION" :
+				format == IOCTL_CDROM_MEDIA_CATALOG ? "CDROM_MEDIA_CATALOG" :
+				format == IOCTL_CDROM_TRACK_ISRC ? "CDROM_TRACK_ISRC" : "???");
+			OutTrace("< track=%d\n", track); 
+		}
+		if(!ret && (dxw.dwFlags10 & FAKECDDRIVE)){
+			char path[MAX_PATH];
+			FILE *qc;
+			strncpy(path, dxwGetFakeDriverPath(DXW_CD_PATH), MAX_PATH);
+			strncat(path, "\\$QCHANNEL", MAX_PATH - strlen("\\$QCHANNEL") - 1);
+			qc = fopen(path, "rb");
+			if(qc) {
+				int len = fread(lpOutBuffer, 1, nOutBufferSize, qc); 
+				if(len) {
+					OutTrace("QCHANNEL: returning fake QCHANNEL data len=%d\n", len);
+					*lpBytesReturned = len;
+					ret = TRUE;
+					fixed = TRUE;
+				}
+				fclose(qc);
+			}
+		}
+	}
+
+	if(!ret && (dwIoControlCode == GENERIC_READ) && (dxw.dwFlags10 & FAKECDDRIVE)){
+		char path[MAX_PATH];
+		FILE *cd;
+		strncpy(path, dxwGetFakeDriverPath(DXW_CD_PATH), MAX_PATH);
+		strncat(path, "\\$CDROM", MAX_PATH - strlen("\\$CDROM") - 1);
+		cd = fopen(path, "rb");
+		if(cd) {
+			int len = fread(lpOutBuffer, 1, nOutBufferSize, cd); 
+			if(len) {
+				OutTrace("CDROM: returning fake CDROM data len=%d\n", len);
+				*lpBytesReturned = len;
+				ret = TRUE;
+				fixed = TRUE;
+			}
+			fclose(cd);
+		}
+	}
+
+	if(ret && fixed){
+		//OutTraceSYS("%s: OK retbytes=%d overlapped=%d\n", ApiRef, *lpBytesReturned, *lpOverlapped);
+		OutTraceSYS("%s: FIXED outsize=%d\n", ApiRef, lpBytesReturned ? *lpBytesReturned : 0);
+#ifndef DXW_NOTRACES
+		if(IsDebugSYS && IsTraceHex) {
+			if(lpBytesReturned && *lpBytesReturned) {
+				OutTrace("> OutBuffer:\n");
+				HexTrace((LPBYTE)lpOutBuffer, *lpBytesReturned);
+			}
+			if(lpOverlapped) {
+				OutTrace("> Overlapped:\n");
+				HexTrace((LPBYTE)lpOverlapped, sizeof(OVERLAPPED));
+			}
+		}
+#endif // DXW_NOTRACES
+	}
+	else {
+		OutErrorSYS("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	}
 
 #ifdef HANDLEFAKERAWDEVICE

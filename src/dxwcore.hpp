@@ -1049,6 +1049,8 @@ BOOL FixWindowProc(char *, HWND, UINT, WPARAM *, LPARAM *, HRESULT *, BOOL);
 #define OutTraceE(f, ...) OutTrace(f, __VA_ARGS__)
 #define IsAssertEnabled (dxw.dwTFlags & ASSERTDIALOG)
 #define STEP OutTrace("STEP at %s:%d\n", __FILE__, __LINE__)
+#define STEPN(n) OutTrace("STEP at %s:%d n=%#X\n", __FILE__, __LINE__, (n))
+#define STEPS(s) OutTrace("STEP at %s:%d s=\"%s\"\n", __FILE__, __LINE__, (s))
 #define PROBE(s,v) OutTrace("PROBE %s=%#x at %s:%d\n", s, v, __FILE__, __LINE__)
 // -- tracing subroutines
 extern void DescribeSurface(LPDIRECTDRAWSURFACE, int, char *, int);
