@@ -1875,6 +1875,9 @@ void dxwCore::ShowTextOverlay(HDC xdc, int w, int h)
 	DWORD dwBkColor, dwTextColor, dwROP;
 	BOOL rAlign, bAlign, cAlign;
 	SIZE Size;
+	COLORREF prevBkColor, prevTextColor;
+	typedef COLORREF (WINAPI *SetBkColor_Type)(HDC, COLORREF);
+	extern SetBkColor_Type pSetBkColor;
 
 	// initializations
 	if(dwTimer == 0){
@@ -1957,8 +1960,9 @@ void dxwCore::ShowTextOverlay(HDC xdc, int w, int h)
 	// GetTextExtentPoint32 call should not be placed before we select the font or the
 	// calculations won't be accurate!
 	if(!pSetTextColor) pSetTextColor = SetTextColor;
+	if(!pSetBkColor) pSetBkColor = SetBkColor;
 	if(iOverlayStyle == 0){
-		(*pSetTextColor)(xdc,dwTextColor);
+		prevTextColor = (*pSetTextColor)(xdc, dwTextColor);
 		SetBkMode(xdc, OPAQUE);
 		GetTextExtentPoint32(xdc, sBuf, strlen(sBuf), &Size);
 		if(rAlign) x -= Size.cx; // if positioned to right, right-align.
@@ -1968,6 +1972,7 @@ void dxwCore::ShowTextOverlay(HDC xdc, int w, int h)
 			y -= Size.cy / 2; 
 		}
 		TextOut(xdc, x, y, sBuf, strlen(sBuf));
+		(*pSetTextColor)(xdc, prevTextColor);
 	}
 	else {
 		HDC hdc;
@@ -1976,8 +1981,8 @@ void dxwCore::ShowTextOverlay(HDC xdc, int w, int h)
 		hdc=CreateCompatibleDC(xdc);
 		hbmp=CreateCompatibleBitmap(xdc, DXW_OVERLAY_W, DXW_OVERLAY_H);
 		holdbmp=(HBITMAP)SelectObject(hdc, (HGDIOBJ)hbmp);
-		SetBkColor(hdc,dwBkColor); 
-		(*pSetTextColor)(hdc, dwTextColor); 
+		prevBkColor = (*pSetBkColor)(hdc, dwBkColor); 
+		prevTextColor = (*pSetTextColor)(hdc, dwTextColor); 
 		SetBkMode(hdc, OPAQUE);
 		hPrevFont = (HFONT)SelectObject(hdc, (HGDIOBJ)hFont);
 		TextOut(hdc, 0, 0, sBuf, strlen(sBuf));
@@ -1991,6 +1996,8 @@ void dxwCore::ShowTextOverlay(HDC xdc, int w, int h)
 		BitBlt(xdc, x, y, Size.cx, Size.cy, hdc, 0, 0, dwROP);
 		DeleteObject(hbmp);
 		DeleteObject(hdc);
+		(*pSetTextColor)(xdc, prevTextColor);
+		(*pSetBkColor)(hdc, prevBkColor);
 	}
 }
 

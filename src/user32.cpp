@@ -32,7 +32,7 @@ extern void DumpBitmap(char *, HBITMAP);
 //#define TRACEALL
 //#define TRACEPOINTS
 //#define TRACEWAITOBJECTS
-//#define TRACESYSCALLS
+#define TRACESYSCALLS
 //#define TRACEWINDOWS
 //#define TRACEIMAGES
 //#define TRACEMENUS
@@ -3406,6 +3406,8 @@ typedef HWND (WINAPI *CreateWindow_Type)(DWORD, LPVOID, LPVOID, DWORD, int, int,
 static HWND WINAPI CreateWindowCommon(
   LPCSTR api,
   CreateWindow_Type pCreateWindow,
+  BOOL isAscii,
+  BOOL bScroll,
   BOOL bActiveMovie,
   DWORD dwExStyle,
   void *lpClassName,
@@ -3455,8 +3457,12 @@ static HWND WINAPI CreateWindowCommon(
 #ifndef DXW_NOTRACES
 		char sStyle[256];
 		char sExStyle[256];
-		OutDebugDW("%s: CREATION pos=(%d,%d) size=(%d,%d) Style=%#x(%s) ExStyle=%#x(%s)\n",
-			ApiRef, x, y, nWidth, nHeight, 
+		char sNumberW[20];
+		char sNumberH[20];
+		OutDebugDW("%s: CREATION pos=(%d,%d) size=(%s,%s) Style=%#x(%s) ExStyle=%#x(%s)\n",
+			ApiRef, x, y, 
+			nWidth & CW_USEDEFAULT ? "CW_USEDEFAULT" : _itoa(nWidth, sNumberW, 10), 
+			nHeight & CW_USEDEFAULT ? "CW_USEDEFAULT" : _itoa(nHeight, sNumberH, 10),  
 			dwStyle, ExplainStyle(dwStyle, sStyle, 256), 
 			dwExStyle, ExplainExStyle(dwExStyle, sExStyle, 256));
 #endif // DXW_NOTRACES
@@ -3628,6 +3634,11 @@ static HWND WINAPI CreateWindowCommon(
 		dxw.MapWindow(&x, &y, &nWidth, &nHeight);
 		OutTraceGDI("%s: fixed ABSOLUTE pos=(%d,%d) size=(%d,%d)\n", ApiRef, x, y, nWidth, nHeight);
 	}
+	if(bScroll){
+		// why restoring the original CW_USEDEFAULT value does not work?
+		if(origh & CW_USEDEFAULT) nHeight = 20; 
+		if(origw & CW_USEDEFAULT) nWidth = 20; 
+	}
 
 	if(dxw.dwFlags4 & FORCECLIPCHILDREN) {
 		// v2.04.73: in window mode add WS_CLIPCHILDREN if asked to. Fixes "Psychotoxic".
@@ -3652,10 +3663,15 @@ static HWND WINAPI CreateWindowCommon(
 #ifndef DXW_NOTRACES
 	char sStyle[256];
 	char sExStyle[256];
-	OutDebugDW("%s: CREATION pos=(%d,%d) size=(%d,%d) Style=%#x(%s) ExStyle=%#x(%s)\n",
-		ApiRef, origx, origy, origw, origh, 
-		origstyle, ExplainStyle(origstyle, sStyle, 256), 
-		origexstyle, ExplainExStyle(origexstyle, sExStyle, 256));
+	char sNumberW[20];
+	char sNumberH[20];
+	OutDebugDW("%s: CREATION pos=(%d,%d) size=(%s,%s) Style=%#x(%s) ExStyle=%#x(%s)\n",
+		ApiRef, x, y, 
+		nWidth & CW_USEDEFAULT ? "CW_USEDEFAULT" : _itoa(nWidth, sNumberW, 10), 
+		nHeight & CW_USEDEFAULT ? "CW_USEDEFAULT" : _itoa(nHeight, sNumberH, 10),  
+		dwStyle, ExplainStyle(dwStyle, sStyle, 256), 
+		dwExStyle, ExplainExStyle(dwExStyle, sExStyle, 256));
+
 #endif // DXW_NOTRACES
 
 	// v2.04.02: InMainWinCreation semaphore, signals to the CreateWin callback that the window to be created will be a main window,
@@ -3826,6 +3842,7 @@ HWND WINAPI extCreateWindowExW(
   LPVOID lpParam) 
 {
 	BOOL bActiveMovie;
+	BOOL bScroll = FALSE;
 	ApiName("CreateWindowExW");
 
 #ifndef DXW_NOTRACES
@@ -3863,9 +3880,12 @@ HWND WINAPI extCreateWindowExW(
 		!wcscmp(lpWindowName, L"MSCTFIME UI") // v2.04.82: "Extreme Boards Blades"
 		);
 
+	bScroll = ((DWORD)lpClassName & 0xFFFF0000) && !wcscmp(lpClassName, L"SCROLLBAR");
+
 	return CreateWindowCommon(
 		ApiRef, 
 		(CreateWindow_Type)pCreateWindowExW, 
+		FALSE, bScroll,
 		bActiveMovie, dwExStyle, 
 		(void *)lpClassName, 
 		(void *)lpWindowName, 
@@ -3897,6 +3917,7 @@ HWND WINAPI extCreateWindowExA(
 	BOOL bActiveMovie;
 	BOOL bBlackOverlay = FALSE;
 	BOOL bWizGoldHack = FALSE; 
+	BOOL bScroll = FALSE;
 	ApiName("CreateWindowExA");
 
 #ifndef DXW_NOTRACES
@@ -3925,6 +3946,8 @@ HWND WINAPI extCreateWindowExA(
 		!strcmp(lpWindowName, "ActiveMovie Window") ||
 		!strcmp(lpWindowName, "MSCTFIME UI") // v2.04.82: "Extreme Boards Blades"
 		);
+
+	bScroll = ((DWORD)lpClassName & 0xFFFF0000) && !strcmp(lpClassName, "SCROLLBAR");
 
 	// v2.05.94: added ""Smacker Window" class to movies. Beware: the flag alone is not enough
 	// to ensure the video stretching to full window because the window parent IS NOT the virtual
@@ -3957,12 +3980,16 @@ HWND WINAPI extCreateWindowExA(
 		return (HWND)FAKEKILLEDWIN;
 	}
 
-	if ((dxw.dwFlags9 & KILLBLACKWIN) && ((DWORD)lpClassName & 0xFFFF0000) && ((DWORD)lpWindowName & 0xFFFF0000)){
-		if(!strcmp(lpClassName, "TForm1") && !strcmp(lpWindowName, "Form1")) {	// on "The Three Swordsmen"
-			OutTraceGDI("%s: HIDE window class=\"%s\" name=\"%s\"\n", ApiRef, lpClassName, lpWindowName);
-			bBlackOverlay = TRUE;
-			dwExStyle |= WS_EX_LAYERED;
-		}
+	if ((dxw.dwFlags9 & KILLBLACKWIN) && ((DWORD)lpClassName & 0xFFFF0000) && ((DWORD)lpWindowName & 0xFFFF0000) && (
+		(!strcmp(lpClassName, "TForm1") && !strcmp(lpWindowName, "Form1")) ||					// on "The Three Swordsmen"
+		(!strcmp(lpClassName, "BB_AVICALLBACK") && !strcmp(lpWindowName, "BB_AVICALLBACK"))	||	// on "Battle Isle 3"
+		(!strcmp(lpClassName, "SSCALLBACK") && !strcmp(lpWindowName, "SSCALLBACK"))	||			// on "Battle Isle 3"
+		(!strcmp(lpClassName, "POSTFIXCALLBACK") && !strcmp(lpWindowName, "POSTFIXCALLBACK")) ||// on "Battle Isle 3"
+		(!strcmp(lpClassName, "PREFIXCALLBACK") && !strcmp(lpWindowName, "PREFIXCALLBACK"))		// on "Battle Isle 3"
+		)) {	
+		OutTraceGDI("%s: HIDE window class=\"%s\" name=\"%s\"\n", ApiRef, lpClassName, lpWindowName);
+		bBlackOverlay = TRUE;
+		dwExStyle |= WS_EX_LAYERED;
 	}
 
 	if((dxw.dwFlags11 & CUSTOMLOCALE) && 
@@ -4002,6 +4029,7 @@ HWND WINAPI extCreateWindowExA(
 		ret = CreateWindowCommon(
 			ApiRef, 
 			(CreateWindow_Type)pCreateWindowExW, 
+			FALSE, bScroll,
 			bActiveMovie, dwExStyle, 
 			(void *)lpClassNameW, 
 			(void *)lpWindowNameW, 
@@ -4022,6 +4050,7 @@ HWND WINAPI extCreateWindowExA(
 	HWND ret = CreateWindowCommon(
 		ApiRef, 
 		(CreateWindow_Type)pCreateWindowExA, 
+		TRUE, bScroll,
 		bActiveMovie, dwExStyle, 
 		(void *)lpClassName, 
 		(void *)lpWindowName, 
@@ -4032,7 +4061,17 @@ HWND WINAPI extCreateWindowExA(
 		hInstance, 
 		lpParam); 
 	
-	if(bBlackOverlay) SetLayeredWindowAttributes(ret, RGB(0,0,0), 0, LWA_COLORKEY);
+	if(bBlackOverlay) {
+		SetLayeredWindowAttributes(ret, RGB(0,0,0), 0, LWA_COLORKEY);
+#if 0
+		RECT Rect;
+		(*pGetWindowRect)(hWndParent, &Rect);
+		//(*pSetWindowPos)(ret, hWndParent, Rect.left, Rect.top, Rect.right, Rect.bottom, 0);
+		(*pSetWindowPos)(ret, HWND_TOP, Rect.left, Rect.top, Rect.right, Rect.bottom, 0);
+#else
+		(*pSetWindowPos)(ret, hWndParent, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE);
+#endif
+	}
 	if(bWizGoldHack) (*pShowWindow)(ret, SW_MINIMIZE);
 
 	return ret;
@@ -8615,12 +8654,24 @@ UINT WINAPI extGetRawInputDeviceList(PRAWINPUTDEVICELIST pRawInputDeviceList, PU
 ScrollWindowEx
 */
 
+static char *sBar(DWORD nbar)
+{
+	char *s;
+	switch(nbar){
+		case SB_CTL: s="CTL"; break;
+		case SB_HORZ: s="HORZ"; break;
+		case SB_VERT: s="VERT"; break;
+		default: s="???"; break;
+	}
+	return s;
+}
+
 int WINAPI extSetScrollInfo(HWND hwnd, int nBar, LPSCROLLINFO lpsi, BOOL redraw)
 {
 	int ret;
 	ApiName("SetScrollInfo");
 
-	OutTraceGDI("%s: hwnd=%#x nbar=%#x redraw=%#x\n", ApiRef, hwnd, nBar, redraw);
+	OutTraceGDI("%s: hwnd=%#x nbar=%#x(%s) redraw=%#x\n", ApiRef, hwnd, nBar, sBar(nBar), redraw);
 	OutTraceGDI("%s: lpsi={size=%d mask=%#x scroll(min,max)=(%d,%d) page=%d pos=%d trackpos=%d}\n", 
 		ApiRef, 
 		lpsi->cbSize,
@@ -8640,7 +8691,7 @@ BOOL WINAPI extGetScrollInfo(HWND hwnd, int nBar, LPSCROLLINFO lpsi)
 	BOOL ret;
 	ApiName("GetScrollInfo");
 
-	OutTraceGDI("%s: hwnd=%#x nbar=%#x\n", ApiRef, hwnd, nBar);
+	OutTraceGDI("%s: hwnd=%#x nbar=%#x(%s)\n", ApiRef, hwnd, nBar, sBar(nBar));
 
 	ret = (*pGetScrollInfo)(hwnd, nBar, lpsi);
 
@@ -8665,19 +8716,24 @@ int WINAPI extSetScrollPos(HWND hwnd, int nBar, int nPos, BOOL redraw)
 	int ret;
 	ApiName("SetScrollPos");
 
-	OutTraceGDI("%s: hwnd=%#x nbar=%#x pos=%d redraw=%#x\n", ApiRef, hwnd, nBar, redraw);
+	OutTraceGDI("%s: hwnd=%#x nbar=%#x(%s) pos=%d redraw=%#x\n", ApiRef, hwnd, nBar, sBar(nBar), redraw);
 
 	ret = (*pSetScrollPos)(hwnd, nBar, nPos, redraw);
-	OutTraceGDI("%s: ret(current pos)=%d\n", ApiRef, ret);
+	if(ret) {
+		OutTraceGDI("%s: ret(current pos)=%d\n", ApiRef, ret);
+	}
+	else {
+		OutTraceGDI("%s: ERROR ret(current pos)=%d err=%d\n", ApiRef, ret, GetLastError());
+	}
 	return ret;
 }
 
-BOOL WINAPI extGetScrollPos(HWND hwnd, int nBar)
+int WINAPI extGetScrollPos(HWND hwnd, int nBar)
 {
 	BOOL ret;
 	ApiName("GetScrollPos");
 
-	OutTraceGDI("%s: hwnd=%#x nbar=%#x\n", ApiRef, hwnd, nBar);
+	OutTraceGDI("%s: hwnd=%#x nbar=%#x(%s)\n", ApiRef, hwnd, nBar, sBar(nBar));
 
 	ret = (*pGetScrollPos)(hwnd, nBar);
 
@@ -8690,7 +8746,7 @@ BOOL WINAPI extGetScrollRange(HWND hwnd, int nBar, LPINT lpMinPos, LPINT lpMaxPo
 	BOOL ret;
 	ApiName("GetScrollRange");
 
-	OutTraceGDI("%s: hwnd=%#x nbar=%#x\n", ApiRef, hwnd, nBar);
+	OutTraceGDI("%s: hwnd=%#x nbar=%#x(%s)\n", ApiRef, hwnd, nBar, sBar(nBar));
 
 	ret = (*pGetScrollRange)(hwnd, nBar, lpMinPos, lpMaxPos);
 
@@ -8708,7 +8764,7 @@ BOOL WINAPI extSetScrollRange(HWND hwnd, int nBar, int nMinPos, int nMaxPos, BOO
 	BOOL ret;
 	ApiName("SetScrollRange");
 
-	OutTraceGDI("%s: hwnd=%#x nbar=%#x range(min,max)=(%d,%d) redraw=%#x\n", ApiRef, hwnd, nBar, nMinPos, nMaxPos, bRedraw);
+	OutTraceGDI("%s: hwnd=%#x nbar=%#x(%s) range(min,max)=(%d,%d) redraw=%#x\n", ApiRef, hwnd, nBar, sBar(nBar), nMinPos, nMaxPos, bRedraw);
 
 	ret = (*pSetScrollRange)(hwnd, nBar, nMinPos, nMaxPos, bRedraw);
 

@@ -591,7 +591,7 @@ static BOOL isAudioA(LPCSTR devType)
 {
 	if (LOWORD(devType) == MCI_DEVTYPE_CD_AUDIO) return TRUE;
 	else
-	if (devType && !_strnicmp(devType, "cdaudio", strlen("cdaudio"))) return TRUE;
+	if (((DWORD)devType & 0xFFFF0000) && !_strnicmp(devType, "cdaudio", strlen("cdaudio"))) return TRUE;
 	return FALSE;
 }
 
@@ -599,7 +599,7 @@ static BOOL isAudioW(LPCWSTR devType)
 {
 	if (LOWORD(devType) == MCI_DEVTYPE_CD_AUDIO) return TRUE;
 	else
-	if (devType && !_wcsnicmp(devType, L"cdaudio", wcslen(L"cdaudio"))) return TRUE;
+	if (((DWORD)devType & 0xFFFF0000) && !_wcsnicmp(devType, L"cdaudio", wcslen(L"cdaudio"))) return TRUE;
 	return FALSE;
 }
 
@@ -852,8 +852,14 @@ MCIERROR WINAPI extmciSendCommand(ApiArg, BOOL isAnsi, mciSendCommand_Type pmciS
 				}
 
 				if(isAnsi){
-					OutDebugDW("%s: hwnd=%#x CmdShow=%#x text=\"%s\"\n", 
-						api, pwa->hWnd, pwa->nCmdShow, pwa->lpstrText);
+					if(IsDebugDW){
+						if(pwa->lpstrText)
+							OutTrace("%s: hwnd=%#x CmdShow=%#x text=\"%s\"\n", 
+								api, pwa->hWnd, pwa->nCmdShow, pwa->lpstrText);
+						else
+							OutTrace("%s: hwnd=%#x CmdShow=%#x text=(NULL)\n", 
+								api, pwa->hWnd, pwa->nCmdShow);
+					}
 					if(dxw.IsRealDesktop(pwa->hWnd)) {
 						pwa->hWnd = dxw.GethWnd();
 						OutDebugDW("%s: REDIRECT hwnd=%#x\n", api, pwa->hWnd);
@@ -866,8 +872,14 @@ MCIERROR WINAPI extmciSendCommand(ApiArg, BOOL isAnsi, mciSendCommand_Type pmciS
 					}
 				}
 				else {
-					OutDebugDW("%s: hwnd=%#x CmdShow=%#x text=\"%ls\"\n", 
-						api, pww->hWnd, pww->nCmdShow, pww->lpstrText);
+					if(IsDebugDW){
+						if(pwa->lpstrText)
+							OutTrace("%s: hwnd=%#x CmdShow=%#x text=\"%ls\"\n", 
+								api, pwa->hWnd, pwa->nCmdShow, pwa->lpstrText);
+						else
+							OutTrace("%s: hwnd=%#x CmdShow=%#x text=(NULL)\n", 
+								api, pwa->hWnd, pwa->nCmdShow);
+					}
 					if(dxw.IsRealDesktop(pww->hWnd)) {
 						pww->hWnd = dxw.GethWnd();
 						OutDebugDW("%s: REDIRECT hwnd=%#x\n", api, pww->hWnd);
