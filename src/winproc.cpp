@@ -475,7 +475,7 @@ void ExplainMsg(char *ApiName, BOOL isAnsi, HWND hwnd, UINT Msg, WPARAM wParam, 
 		break;	
 	case WM_HSCROLL:
 	case WM_VSCROLL:
-		sprintf_s(sPos, 512, " action=%s", sScrollAction(wParam));
+		sprintf_s(sPos, 512, " action=%s", sScrollAction(wParam & 0x0000FFFF));
 		break;
 	}
 	OutTrace("%s[%#x]: WinMsg=[%#x]%s(%#x,%#x) %s\n", ApiName, hwnd, Msg, ExplainWinMessage(Msg), wParam, lParam, sPos);

@@ -644,6 +644,8 @@ MCIERROR WINAPI extmciSendCommand(ApiArg, BOOL isAnsi, mciSendCommand_Type pmciS
 	if(IsTraceSYS || IsTraceSND) DumpMciMessage(ApiRef, isAnsi, FALSE, IDDevice, uMsg, dwFlags, dwParam);
 #endif
 
+	const void *origelement = NULL;
+
 	if(uMsg == 0){
 		OutTraceSND("%s: special msg=NULL\n", api);
 		return 0;
@@ -664,6 +666,7 @@ MCIERROR WINAPI extmciSendCommand(ApiArg, BOOL isAnsi, mciSendCommand_Type pmciS
 			DWORD dtype = DXW_NO_FAKE;
 			if(isAnsi){
 				LPMCI_OPEN_PARMSA op = (LPMCI_OPEN_PARMSA)dwParam;
+				origelement = (const void *)op->lpstrElementName;
 				if(op->lpstrElementName && !isAudioA(op->lpstrDeviceType)) {
 					op->lpstrElementName = dxwTranslatePathA(op->lpstrElementName, &dtype);
 					OutTraceSND("%s: translated path=\"%s\"\n", api, op->lpstrElementName);
@@ -671,6 +674,7 @@ MCIERROR WINAPI extmciSendCommand(ApiArg, BOOL isAnsi, mciSendCommand_Type pmciS
 			}
 			else {
 				LPMCI_OPEN_PARMSW op = (LPMCI_OPEN_PARMSW)dwParam;
+				origelement = (const void *)op->lpstrElementName;
 				if(op->lpstrElementName && !isAudioW(op->lpstrDeviceType)) {
 					op->lpstrElementName = dxwTranslatePathW(op->lpstrElementName, &dtype);
 					OutTraceSND("%s: translated path=\"%ls\"\n", api, op->lpstrElementName);
@@ -1125,6 +1129,8 @@ MCIERROR WINAPI extmciSendCommand(ApiArg, BOOL isAnsi, mciSendCommand_Type pmciS
 	// restore original (unscaled) RECT data
 	// v2.05.60: fix - do it only when REMAPMCI flag is set
 	if(dxw.IsFullScreen() && (uMsg==MCI_PUT) && (dxw.dwFlags5 & REMAPMCI)) pr->rc=saverect;
+
+	if(origelement) ((LPMCI_OPEN_PARMSA)dwParam)->lpstrElementName = (const char *)origelement;
 
 	if (ret) {
 		OutTraceE("%s: ERROR res=%#x(%s)\n", api, ret, mmErrorString(ret));

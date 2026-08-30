@@ -151,7 +151,7 @@ HIC WINAPI extICOpen(DWORD fccType, DWORD fccHandler, UINT wMode)
 
 	res=(*pICOpen)(fccType, fccHandler, wMode);
 	if(!res && 1/*INJECTINDEO*/ && (fcctolower(fccType) == FCC_VIDC)) {
-		res = install_codec(fccHandler, wMode);
+		res = install_codec(fcctolower(fccHandler), wMode);
 	}
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, res);
 	return res;
@@ -187,7 +187,7 @@ HIC VFWAPI extICLocate(DWORD fccType, DWORD fccHandler, LPBITMAPINFOHEADER lpbiI
 	}
 	res=(*pICLocate)(fccType, fccHandler, lpbiIn, lpbiOut, wflags);
 	if(!res && 1/*INJECTINDEO*/ && (fcctolower(fccType) == FCC_VIDC)) {
-		res = install_codec(fccHandler, wflags);
+		res = install_codec(fcctolower(fccHandler), wflags);
 	}
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, res);
 	return res;
