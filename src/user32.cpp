@@ -2596,7 +2596,8 @@ static BOOL WINAPI extPeekMessage(char *api, PeekMessage_Type pPeekMessage, BOOL
 	// v2.04.34: when res==0 no message is extracted from the queue, but lpMsg can point to the last valid message
 	// so that a loop of failed extractions from queue would keep fixing the last message coordinates. 
 	// Useless though apparently not harmful, a if(res) condition was added here.
-	if(res && dxw.GethWnd() && dxw.MustFixCoordinates){
+	// v2.06.16: make FIXMOUSELPARAM independent from MODIFYMOUSE
+	if(res && dxw.GethWnd()){
 		if(dxw.dwFlags12 & FIXMOUSELPARAM) FixMessageLParam(ApiRef, lpMsg);
 	}
 
@@ -2711,9 +2712,8 @@ static BOOL WINAPI extGetMessage(ApiArg, GetMessage_Type pGetMessage, BOOL isAns
 		}
 	}
 
-	if(dxw.MustFixMouse){
-		if(dxw.dwFlags12 & FIXMOUSELPARAM) FixMessageLParam(ApiRef, lpMsg);
-	}
+	// v2.06.16: make FIXMOUSELPARAM independent from MODIFYMOUSE
+	if(dxw.dwFlags12 & FIXMOUSELPARAM) FixMessageLParam(ApiRef, lpMsg);
 
 	if (lpMsg->message == WM_SYSKEYDOWN) {
 		// v2.05.11 fix: added here to manage hot keys & Alt-F4 in GetMessage loops. Fixes "Road Rash".

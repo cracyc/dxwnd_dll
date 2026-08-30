@@ -6790,16 +6790,21 @@ DWORD WINAPI extSearchPathA(LPCSTR lpPath, LPCSTR lpFileName, LPCSTR lpExtension
 {
 	ApiName("SearchPathA");
 	DWORD res;
+	char *sPath = NULL;
 	OutTraceSYS("%s: fname=\"%s\" path=\"%s\" ext=\"%s\" buflen=%d\n", 
 		ApiRef, lpFileName, lpPath, lpExtension, nBufferLength);
 
 	// v2.06.03 fix: lpPath can be NULL
+	// v2.06.16 fix: save translated lpPath value when also lpFileName is translated
 	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
 		DWORD mapping;
 		if(lpPath){
 			lpPath = dxwTranslatePathA(lpPath, &mapping);
 			if(mapping != DXW_NO_FAKE) {
 				OutTraceDW("%s: remapped path on fake %s\n", ApiRef, mapping == DXW_FAKE_HD ? "HD" : "CD");
+				sPath = (char *)malloc(strlen(lpPath)+1);
+				strcpy(sPath, lpPath);
+				lpPath = sPath;
 			}
 		}
 		lpFileName = dxwTranslatePathA(lpFileName, &mapping);
@@ -6821,6 +6826,7 @@ DWORD WINAPI extSearchPathA(LPCSTR lpPath, LPCSTR lpFileName, LPCSTR lpExtension
 	else {
 		OutErrorSYS("%s: ERROR res=%d err=%d\n", ApiRef, res, GetLastError());
 	}
+	if(sPath) free(sPath);
 	return res;
 }
 
@@ -6828,16 +6834,21 @@ DWORD WINAPI extSearchPathW(LPCWSTR lpPath, LPCWSTR lpFileName, LPCWSTR lpExtens
 {
 	ApiName("SearchPathW");
 	DWORD res;
+	WCHAR *sPath = NULL;
 	OutTraceSYS("%s: fname=\"%ls\" path=\"%ls\" ext=\"%ls\" buflen=%d\n", 
 		ApiRef, lpFileName, lpPath, lpExtension, nBufferLength);
 
 	// v2.06.03 fix: lpPath can be NULL
+	// v2.06.16 fix: save translated lpPath value when also lpFileName is translated
 	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
 		DWORD mapping;
 		if(lpPath) {
 			lpPath = dxwTranslatePathW(lpPath, &mapping);
 			if(mapping != DXW_NO_FAKE) {
 				OutTraceDW("%s: remapped path on fake %s\n", ApiRef, mapping == DXW_FAKE_HD ? "HD" : "CD");
+				sPath = (WCHAR *)malloc((wcslen(lpPath)+1) * sizeof(WCHAR));
+				wcscpy(sPath, lpPath);
+				lpPath = sPath;
 			}
 		}
 		lpFileName = dxwTranslatePathW(lpFileName, &mapping); // v2.06.11 - fix for "Barbie Fashion Designer" through winevdm
@@ -6848,12 +6859,17 @@ DWORD WINAPI extSearchPathW(LPCWSTR lpPath, LPCWSTR lpFileName, LPCWSTR lpExtens
 
 	res = (*pSearchPathW)(lpPath, lpFileName, lpExtension, nBufferLength, lpBuffer, lpFilePart);
 	if(res) {
-		OutTrace("%s: res=%d buffer=\"%ls\" filepart=\"%ls\"\n", 
-			ApiRef, res, lpBuffer, lpFilePart ? *lpFilePart : L"(NULL)");
+		// v2.05.94: the *lpFilePart is not reliable: even if not NULL it can point to a 
+		// bad string that causes axception
+		//OutTrace("%s: res=%d buffer=\"%ls\" filepart=\"%ls\"\n", 
+		//	ApiRef, res, lpBuffer, lpFilePart ? *lpFilePart : L"(NULL)");
+		OutTrace("%s: res=%d buffer=\"%ls\"\n", 
+			ApiRef, res, lpBuffer ? lpBuffer : L"NULL");
 	}
 	else {
 		OutErrorSYS("%s: ERROR res=%d err=%d\n", ApiRef, res, GetLastError());
 	}
+	if(sPath) free(sPath);
 	return res;
 }
 
