@@ -644,6 +644,8 @@ MCIERROR WINAPI extmciSendCommand(ApiArg, BOOL isAnsi, mciSendCommand_Type pmciS
 	if(IsTraceSYS || IsTraceSND) DumpMciMessage(ApiRef, isAnsi, FALSE, IDDevice, uMsg, dwFlags, dwParam);
 #endif
 
+	if(dxw.dwDFlags2 & EXPERIMENTAL8) return (*pmciSendCommand)(IDDevice, uMsg, dwFlags, dwParam);
+
 	const void *origelement = NULL;
 
 	if(uMsg == 0){

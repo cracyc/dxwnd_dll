@@ -948,6 +948,7 @@ void SetTargetFromDlg(TARGETMAP *t, CTargetDlg *dlg)
 	if(dlg->m_SDLForceStretch) t->flags9 |= SDLFORCESTRETCH;
 	if(dlg->m_HookSmackW32) t->flags7 |= HOOKSMACKW32;
 	if(dlg->m_HookBinkW32) t->flags5 |= HOOKBINKW32;
+	if(dlg->m_HookWineDrawDib) t->flags20 |= HOOKWINEDRAWDIB;
 	if(dlg->m_HookDirectShow) t->flags17 |= HOOKDIRECTSHOW;
 	if(dlg->m_ScaleDirectShow) t->flags18 |= SCALEDIRECTSHOW;
 	if(dlg->m_IgnoreAddFilter) t->flags18 |= IGNOREADDFILTER;
@@ -1697,6 +1698,7 @@ static void SetDlgFromTarget(TARGETMAP *t, CTargetDlg *dlg)
 	dlg->m_SDLForceStretch = t->flags9 & SDLFORCESTRETCH ? 1 : 0;
 	dlg->m_HookSmackW32 = t->flags7 & HOOKSMACKW32 ? 1 : 0;
 	dlg->m_HookBinkW32 = t->flags5 & HOOKBINKW32 ? 1 : 0;
+	dlg->m_HookWineDrawDib = t->flags20 & HOOKWINEDRAWDIB ? 1 : 0;
 	dlg->m_HookDirectShow = t->flags17 & HOOKDIRECTSHOW ? 1 : 0;
 	dlg->m_ScaleDirectShow = t->flags18 & SCALEDIRECTSHOW ? 1 : 0;
 	dlg->m_IgnoreAddFilter = t->flags18 & IGNOREADDFILTER ? 1 : 0;

@@ -29,10 +29,10 @@ extern void DumpBitmap(char *, HBITMAP);
 #define IfTraceError()
 #endif
 
-//#define TRACEALL
+#define TRACEALL
 //#define TRACEPOINTS
 //#define TRACEWAITOBJECTS
-#define TRACESYSCALLS
+//#define TRACESYSCALLS
 //#define TRACEWINDOWS
 //#define TRACEIMAGES
 //#define TRACEMENUS

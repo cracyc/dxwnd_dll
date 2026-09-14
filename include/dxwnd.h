@@ -688,6 +688,7 @@
 #define FORCENOPAGELOCK		0x00010000 // forces dwCaps2 DDCAPS2_NOPAGELOCKREQUIRED flag
 #define ESCAPEDINIFILES		0x00020000 // treats ini files as the fake-registry entries
 #define SETZOOMED			0x00040000 // forces IsZoomed() to return TRUE on the main window
+#define HOOKWINEDRAWDIB		0x00080000 // links the internal DrawDib* implementation from Wine source code
 
 // debug Dflags DWORD:
 #define CPUVENDORMASK		0x00000007

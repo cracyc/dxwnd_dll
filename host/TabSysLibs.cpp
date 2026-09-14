@@ -57,6 +57,7 @@ void CTabSysLibs::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_SUPPRESSGLIDE, cTarget->m_SuppressGlide);
 	DDX_Check(pDX, IDC_HOOKSMACKW32, cTarget->m_HookSmackW32);
 	DDX_Check(pDX, IDC_HOOKBINKW32, cTarget->m_HookBinkW32);
+	DDX_Check(pDX, IDC_HOOKWINEDRAWDIB, cTarget->m_HookWineDrawDib);
 
 	// Kernel32 heap
 	DDX_Check(pDX, IDC_FIXGLOBALUNLOCK, cTarget->m_FixGlobalUnlock);

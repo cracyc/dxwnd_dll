@@ -2671,6 +2671,13 @@ HANDLE WINAPI extCreateFileA(LPCTSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 		dwCreationDisposition, ExplainDisposition(dwCreationDisposition),
 		dwFlagsAndAttributes, ExplainFlagsAndAttributes(dwFlagsAndAttributes));
 
+	if(dxw.isWineControlled){
+		if(!_stricmp(lpFileName, "\\WIN.COM")) {
+			OutTraceDW("%s: pretending \\WIN.COM exists\n", ApiRef);
+			return (HANDLE)0xDEADBEEF;
+		}
+	}
+
 	if((dxw.dwFlags3 & BUFFEREDIOFIX) && (dwFlagsAndAttributes & FILE_FLAG_NO_BUFFERING)){
 		OutTraceDW("%s: suppress FILE_FLAG_NO_BUFFERING on Filename=\"%s\"\n", ApiRef, lpFileName); 
 		dwFlagsAndAttributes &= ~FILE_FLAG_NO_BUFFERING;
@@ -2756,6 +2763,13 @@ HANDLE WINAPI extCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 		ApiRef, lpFileName, dwDesiredAccess, ExplainDesiredAccess(dwDesiredAccess), dwShareMode, 
 		dwCreationDisposition, ExplainDisposition(dwCreationDisposition),
 		dwFlagsAndAttributes, ExplainFlagsAndAttributes(dwFlagsAndAttributes));
+
+	if(dxw.isWineControlled){
+		if(!_wcsicmp(lpFileName, L"\\WIN.COM")) {
+			OutTraceDW("%s: pretending \\WIN.COM exists\n", ApiRef);
+			return (HANDLE)0xDEADBEEF;
+		}
+	}
 
 	if((dxw.dwFlags3 & BUFFEREDIOFIX) && (dwFlagsAndAttributes & FILE_FLAG_NO_BUFFERING)){
 		OutTraceDW("%s: suppress FILE_FLAG_NO_BUFFERING on Filename=\"%ls\"\n", ApiRef, lpFileName); 
@@ -5249,9 +5263,12 @@ HGLOBAL WINAPI extGlobalFree(HGLOBAL hMem)
 }
 
 // -------------------- REMAPSYSFOLDERS hooks --------------------
-
+#define RELATIVESYSPATH
 char *GetFakeWinDirA()
 {
+#ifdef RELATIVESYSPATH
+	return ".\\Windows";
+#endif
 	static char myPathA[MAX_PATH];
 	if(dxw.isWineControlled){
 		char keyName[8];
@@ -6027,6 +6044,7 @@ BOOL WINAPI extDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpI
 	//	MessageBox(0, "IOCTL_SCSI_PASS_THROUGH_DIRECT", "DxWnd", 0);
 	//}
 
+
 	if(dxw.dwFlags12 & LOCKCDTRAY){
 		switch (dwIoControlCode){
 			case IOCTL_STORAGE_EJECT_MEDIA:
@@ -6174,6 +6192,11 @@ BOOL WINAPI extDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpI
 		ret = TRUE;
 	}
 #endif
+	if(dxw.isWineControlled && (dxw.dwFlags10 & FAKECDDRIVE)){
+		OutTraceDW("%s: ignoring WineVDM CD checks\n", ApiRef);
+		SetLastError(0);
+		return TRUE;
+	}
 	return ret;
 }
 

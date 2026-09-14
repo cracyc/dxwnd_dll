@@ -240,6 +240,7 @@ void CTargetDlg::InitializeDefaults()
 	m_SDLForceStretch = FALSE;
 	m_HookSmackW32 = FALSE;
 	m_HookBinkW32 = FALSE;
+	m_HookWineDrawDib = FALSE;
 	m_HookDirectShow = TRUE; // !!!!
 	m_ScaleDirectShow = TRUE; // !!!!
 	m_IgnoreAddFilter = FALSE; 

@@ -399,6 +399,9 @@ void dxwCore::InitTarget(TARGETMAP *target)
 		dwFlags5 &= ~REMAPMCI;
 		dwFlags18 &= ~SCALEDIRECTSHOW;
 	}
+	if(isWineControlled) {
+		dwFlags5 &= ~REMAPMCI;
+	}
 
 	EmulateWin95 = (dwFlags15 & EMULATEWIN95) ? TRUE : FALSE;
 	IsVisible = TRUE;
