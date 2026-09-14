@@ -191,6 +191,7 @@ OBJS = \
     $(OUTDIR)\wintrust.obj \
     $(OUTDIR)\wlocale.obj \
     $(OUTDIR)\xinput.obj \
+    $(OUTDIR)\drawdib.obj \
     $(OUTDIR)\dxwnd.res
 
 all: $(OUTDIR) $(TARGET)

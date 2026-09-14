@@ -32,7 +32,7 @@
 #define WARN OutDebugSYS
 #define TRACE OutTraceSYS
 
-#ifndef LPDRAWDIBTIME
+#if 0 //#ifndef LPDRAWDIBTIME
 typedef struct {
 	LONG timeCount;			// Number of times the operation was performed
 	LONG timeDraw;			// Time taken to draw the images
