@@ -335,33 +335,6 @@ LPCWSTR dxwTranslatePathW(LPCWSTR lpFileName, DWORD *mapping)
 			OutTraceDW("%s: fake HD new FileName=\"%ls\"\n", ApiRef, lpFileName);
 			break;
 		}
-
-
-//		if((dxw.dwFlags10 & FAKECDDRIVE) && hasDriveLetter && ((char)toupper(lpFileName[0])==dxw.FakeCDDrive)){
-//			strncpy(sNewPath, dxwGetFakeDriverPath(DXW_CD_PATH), MAX_PATH);
-//			strncat(sNewPath, &lpFileName[2], MAX_PATH-strlen(sNewPath));
-//			lpFileName = sNewPath;
-//			dwMapping = DXW_FAKE_CD;
-//			OutTraceDW("TranslatePath: fake CD(1) new FileName=\"%s\"\n", lpFileName);
-//			break;
-//		}
-//#ifdef HANDLEFAKERAWDEVICE
-//		if((dxw.dwFlags10 & FAKECDDRIVE) && !strncmp(lpFileName, "\\\\.\\", 4)){
-//			strncpy(sNewPath, dxwGetFakeDriverPath(DXW_CD_PATH), MAX_PATH);
-//			strncat(sNewPath, "\\$RAWDISK", MAX_PATH - strlen("\\$RAWDISK") - 1);
-//			lpFileName = sNewPath;
-//			dwMapping = DXW_FAKE_CD;
-//			OutTraceDW("TranslatePath: fake CD(2) new FileName=\"%s\"\n", lpFileName);
-//			bFakeReadSuccess = TRUE;
-//			break;
-//		}
-//#endif
-
-
-
-
-
-
 		if((dxw.dwFlags10 & FAKECDDRIVE) && (lpFileName[1]==L':') && ((char)toupper((char)lpFileName[0])==dxw.FakeCDDrive)){
 			mbstowcs_s(&converted, sNewPath, MAX_PATH, dxwGetFakeDriverPath(DXW_CD_PATH), _TRUNCATE); 
 			//if((sNewPath[wcslen(sNewPath)-1] == L'\\') && (lpFileName[0] == L'\\'))

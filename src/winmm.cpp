@@ -2294,6 +2294,9 @@ extern MCIERROR WINAPI extmciSendString(char *, LPSTR, LPSTR, UINT, HANDLE);
 MCIERROR WINAPI extmciSendStringA(LPCSTR lpszCommand, LPSTR lpszReturnString, UINT cchReturn, HANDLE hwndCallback)
 { 
 	ApiName("mciSendStringA");
+
+	if(dxw.dwDFlags2 & EXPERIMENTAL8) return (*pmciSendStringA)(lpszCommand, lpszReturnString, cchReturn, hwndCallback);
+
 	if(IsWithinMCICall) return(*pmciSendStringA)(lpszCommand, lpszReturnString, cchReturn, hwndCallback); // just proxy ...
 
 	if(!strcmp(lpszCommand, "play music notify")) return 0;
@@ -2314,6 +2317,9 @@ MCIERROR WINAPI extmciSendStringA(LPCSTR lpszCommand, LPSTR lpszReturnString, UI
 MCIERROR WINAPI extmciSendStringW(LPCWSTR lpszCommand, LPWSTR lpszReturnString, UINT cchReturn, HANDLE hwndCallback)
 {
 	ApiName("mciSendStringW");
+
+	if(dxw.dwDFlags2 & EXPERIMENTAL8) return (*pmciSendStringW)(lpszCommand, lpszReturnString, cchReturn, hwndCallback);
+
 	if(IsWithinMCICall) return(*pmciSendStringW)(lpszCommand, lpszReturnString, cchReturn, hwndCallback); // just proxy ...
 
 	MCIERROR ret;

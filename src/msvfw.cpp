@@ -31,23 +31,42 @@ ICDecompress_Type pICDecompress;
 DWORD VFWAPIV extICDecompress(HIC, DWORD, LPBITMAPINFOHEADER, LPVOID, LPBITMAPINFOHEADER, LPVOID);
 #endif // TRACEALL
 
+static void Remap2Wine()
+{
+	pDrawDibDraw = wineDrawDibDraw;
+	pDrawDibBegin = wineDrawDibBegin;
+	pDrawDibStart = wineDrawDibStart;
+	pDrawDibStop = wineDrawDibStop;
+	pDrawDibEnd = wineDrawDibEnd;
+	pDrawDibOpen = wineDrawDibOpen;
+	pDrawDibClose = wineDrawDibClose;
+	pDrawDibSetPalette = wineDrawDibSetPalette;
+	pDrawDibGetBuffer = wineDrawDibGetBuffer;
+	pDrawDibGetPalette = wineDrawDibGetPalette;
+	pDrawDibRealize = wineDrawDibRealize;
+}
+
 static HookEntryEx_Type Hooks[]={
 	{HOOK_HOT_CANDIDATE, 0, "MCIWndCreateA", (FARPROC)NULL, (FARPROC *)&pMCIWndCreateA, (FARPROC)extMCIWndCreateA}, // "Man in Black" - beware: this is NOT STDCALL!!!
 	{HOOK_HOT_CANDIDATE, 0, "ICGetDisplayFormat", (FARPROC)NULL, (FARPROC *)&pICGetDisplayFormat, (FARPROC)extICGetDisplayFormat}, // "Man in Black" - beware: this is NOT STDCALL!!!
 	{HOOK_HOT_CANDIDATE, 0, "ICDrawBegin", (FARPROC)NULL, (FARPROC *)&pICDrawBegin, (FARPROC)extICDrawBegin}, // AoE demo: not a STDCALL !!
-	{HOOK_HOT_CANDIDATE, 0, "DrawDibDraw", (FARPROC)NULL, (FARPROC *)&pDrawDibDraw, (FARPROC)extDrawDibDraw}, 
-	{HOOK_HOT_CANDIDATE, 0, "DrawDibBegin", (FARPROC)NULL, (FARPROC *)&pDrawDibBegin, (FARPROC)extDrawDibBegin}, 
 	{HOOK_HOT_CANDIDATE, 0, "ICOpen", (FARPROC)NULL, (FARPROC *)&pICOpen, (FARPROC)extICOpen},
 	{HOOK_HOT_CANDIDATE, 0, "ICLocate", (FARPROC)NULL, (FARPROC *)&pICLocate, (FARPROC)extICLocate},
-#ifdef TRACEALL
+	{HOOK_HOT_CANDIDATE, 0, "DrawDibDraw", (FARPROC)NULL, (FARPROC *)&pDrawDibDraw, (FARPROC)extDrawDibDraw}, 
+	{HOOK_HOT_CANDIDATE, 0, "DrawDibBegin", (FARPROC)NULL, (FARPROC *)&pDrawDibBegin, (FARPROC)extDrawDibBegin}, 
 	{HOOK_HOT_CANDIDATE, 0, "DrawDibOpen", (FARPROC)NULL, (FARPROC *)&pDrawDibOpen, (FARPROC)extDrawDibOpen},
 	{HOOK_HOT_CANDIDATE, 0, "DrawDibClose", (FARPROC)NULL, (FARPROC *)&pDrawDibClose, (FARPROC)extDrawDibClose},
-	{HOOK_HOT_CANDIDATE, 0, "ICSendMessage", (FARPROC)NULL, (FARPROC *)&pICSendMessage, (FARPROC)extICSendMessage},
-	{HOOK_HOT_CANDIDATE, 0, "ICClose", (FARPROC)NULL, (FARPROC *)&pICClose, (FARPROC)extICClose},
-	{HOOK_HOT_CANDIDATE, 0, "ICDecompress", (FARPROC)NULL, (FARPROC *)&pICDecompress, (FARPROC)extICDecompress}, 
 	{HOOK_HOT_CANDIDATE, 0, "DrawDibStart", (FARPROC)NULL, (FARPROC *)&pDrawDibStart, (FARPROC)extDrawDibStart}, 
 	{HOOK_HOT_CANDIDATE, 0, "DrawDibStop", (FARPROC)NULL, (FARPROC *)&pDrawDibStop, (FARPROC)extDrawDibStop}, 
 	{HOOK_HOT_CANDIDATE, 0, "DrawDibEnd", (FARPROC)NULL, (FARPROC *)&pDrawDibEnd, (FARPROC)extDrawDibEnd}, 
+	{HOOK_HOT_CANDIDATE, 0, "DrawDibSetPalette", (FARPROC)NULL, (FARPROC *)&pDrawDibSetPalette, (FARPROC)extDrawDibSetPalette}, 
+	{HOOK_HOT_CANDIDATE, 0, "DrawDibGetBuffer", (FARPROC)NULL, (FARPROC *)&pDrawDibGetBuffer, (FARPROC)extDrawDibGetBuffer}, 
+	{HOOK_HOT_CANDIDATE, 0, "DrawDibGetPalette", (FARPROC)NULL, (FARPROC *)&pDrawDibGetPalette, (FARPROC)extDrawDibGetPalette}, 
+	{HOOK_HOT_CANDIDATE, 0, "DrawDibRealize", (FARPROC)NULL, (FARPROC *)&pDrawDibRealize, (FARPROC)extDrawDibRealize}, 
+#ifdef TRACEALL
+	{HOOK_HOT_CANDIDATE, 0, "ICSendMessage", (FARPROC)NULL, (FARPROC *)&pICSendMessage, (FARPROC)extICSendMessage},
+	{HOOK_HOT_CANDIDATE, 0, "ICClose", (FARPROC)NULL, (FARPROC *)&pICClose, (FARPROC)extICClose},
+	{HOOK_HOT_CANDIDATE, 0, "ICDecompress", (FARPROC)NULL, (FARPROC *)&pICDecompress, (FARPROC)extICDecompress}, 
 #endif // TRACEALL
 	{HOOK_IAT_CANDIDATE, 0, 0, NULL, 0, 0} // terminator
 };
@@ -55,7 +74,10 @@ static HookEntryEx_Type Hooks[]={
 FARPROC Remap_vfw_ProcAddress(LPCSTR proc, HMODULE hModule)
 {
 	FARPROC addr;
-	if (addr=RemapLibraryEx(proc, hModule, Hooks)) return addr;
+	if (addr=RemapLibraryEx(proc, hModule, Hooks)) {
+		if(dxw.dwFlags20 & HOOKWINEDRAWDIB) Remap2Wine();
+		return addr;
+	}
 	// NULL -> keep the original call address
 	return NULL;
 }
@@ -63,6 +85,7 @@ FARPROC Remap_vfw_ProcAddress(LPCSTR proc, HMODULE hModule)
 void HookMSV4WLibs(HMODULE module)
 {
 	HookLibraryEx(module, Hooks, "MSVFW32.dll");
+	if(dxw.dwFlags20 & HOOKWINEDRAWDIB) Remap2Wine();
 }
 
 #ifdef TRACEALL
@@ -407,9 +430,9 @@ DWORD WINAPIV extICDrawBegin(HIC hic, DWORD dwFlags, HPALETTE hpal, HWND hwnd,  
 			hwnd = dxw.GethWnd();
 			hdc = NULL;
 		}
-		if(dxw.GDIEmulationMode == GDIMODE_STRETCHED){
-			dxw.MapClient(&xDst, &yDst, &dxDst, &dyDst);
-		}
+		//if(dxw.GDIEmulationMode == GDIMODE_STRETCHED){
+		//	dxw.MapClient(&xDst, &yDst, &dxDst, &dyDst);
+		//}
 	}
 
 	ret = (*pICDrawBegin)(hic, dwFlags, hpal, hwnd, hdc, xDst, yDst, dxDst, dyDst, lpbi, xSrc, ySrc, dxSrc, dySrc, dwRate, dwScale);
@@ -446,23 +469,26 @@ DWORD VFWAPIV extICDecompress(HIC hic, DWORD dwFlags, LPBITMAPINFOHEADER lpbiFor
 
 BOOL WINAPI extDrawDibDraw(HDRAWDIB hdd, HDC hdc, int xDst, int yDst, int dxDst, int dyDst, LPBITMAPINFOHEADER lpbi, LPVOID lpBits, int xSrc, int ySrc, int dxSrc, int dySrc, UINT wFlags)
 {
-	// Reah intro movie
-	// eXtreme Bullrider intro movie ??
+	// "Reah" intro movie
+	// "eXtreme Bullrider" intro movie ??
+	// "Murder, She Wrote" movies
 	BOOL ret;
 	ApiName("DrawDibDraw");
 	OutTraceSYS("%s: hdd=%#x hdc=%#x DEST pos=(%d,%d) size=(%d,%d) SRC pos=(%d,%d) size=(%d,%d) flags=%#x\n",
 		ApiRef, hdd, hdc, xDst, yDst, dxDst, dyDst, xSrc, ySrc, dxSrc, dySrc, wFlags);			
 	
-	if(dxw.GDIEmulationMode == GDIMODE_STRETCHED){
-		dxw.MapClient(&xDst, &yDst, &dxDst, &dyDst);
-	}
-	if(dxw.dwFlags6 & STRETCHMOVIES){
-		xDst = yDst = 0;
-		dxDst = dxw.iSizX;
-		dyDst = dxw.iSizY;
-	}
-
 	if (dxw.dwFlags5 & MESSAGEPUMP) dxw.MessagePump();
+
+	if(dxw.dwFlags6 & STRETCHMOVIES){
+		RECT rect;
+		HWND hwnd = WindowFromDC(hdc);
+		if((*pGetClientRect)(hwnd, &rect)){
+			xDst = yDst = 0;
+			dxDst = rect.right;
+			dyDst = rect.bottom;
+			OutTraceDW("%s: stretching frame size=(%dx%d)\n", ApiRef, dxDst, dyDst);
+		}
+	}
 
 	ret = (*pDrawDibDraw)(hdd, hdc, xDst, yDst, dxDst, dyDst, lpbi, lpBits, xSrc, ySrc, dxSrc, dySrc, wFlags);
 
@@ -480,25 +506,23 @@ BOOL WINAPI extDrawDibBegin(HDRAWDIB hdd, HDC hdc, int dxDest, int dyDest, LPBIT
 	OutTraceSYS("%s: hdd=%#x hdc=%#x DEST size=(%d,%d) SRC size=(%d,%d) flags=%#x\n",
 		ApiRef, hdd, hdc, dxDest, dyDest, dxSrc, dySrc, wFlags);
 
-	if(dxw.GDIEmulationMode == GDIMODE_STRETCHED){
-		dxw.MapClient(&dxDest, &dyDest);
-	}
+	ret = (*pDrawDibBegin)(hdd, hdc, dxSrc, dySrc, lpbi, dxSrc, dySrc, wFlags);
 
-	ret = (*pDrawDibBegin)(hdd, hdc, dxDest, dyDest, lpbi, dxSrc, dySrc, wFlags);
 #ifndef DXW_NOTRACES
 	if(!ret) OutErrorSYS("%s: ERROR err=%d\n", ApiRef, GetLastError());
 #endif // DXW_NOTRACES
 	return ret;
 }
 
-#ifdef TRACEALL
 BOOL WINAPI extDrawDibStart(HDRAWDIB hdd, LONG rate)
 {
 	// Reah game transitions
 	BOOL ret;
 	ApiName("DrawDibStart");
 	OutTraceSYS("%s: hdd=%#x rate=%#x\n", ApiRef, hdd, rate);
+
 	ret = (*pDrawDibStart)(hdd, rate);
+
 	if(!ret) OutErrorSYS("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	return ret;
 }
@@ -509,7 +533,9 @@ BOOL WINAPI extDrawDibStop(HDRAWDIB hdd)
 	BOOL ret;
 	ApiName("DrawDibStop");
 	OutTraceSYS("%s: hdd=%#x\n", ApiRef, hdd);
+
 	ret = (*pDrawDibStop)(hdd);
+
 	if(!ret) OutErrorSYS("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	return ret;
 }
@@ -520,7 +546,9 @@ BOOL WINAPI extDrawDibEnd(HDRAWDIB hdd)
 	BOOL ret;
 	ApiName("DrawDibEnd");
 	OutTraceSYS("%s: hdd=%#x\n", ApiRef, hdd);
+
 	ret = (*pDrawDibEnd)(hdd);
+
 	if(!ret) OutErrorSYS("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	return ret;
 }
@@ -529,7 +557,9 @@ HDRAWDIB WINAPI extDrawDibOpen(void)
 {
 	HDRAWDIB ret;
 	ApiName("DrawDibOpen");
+		
 	ret = (*pDrawDibOpen)();
+
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
@@ -538,10 +568,54 @@ BOOL WINAPI extDrawDibClose(HDRAWDIB hdd)
 {
 	BOOL ret;
 	ApiName("DrawDibClose");
+		
 	ret = (*pDrawDibClose)(hdd);
+
 	OutTraceSYS("%s: hdd=%#x ret=%#x\n", ApiRef, hdd, ret);
 	return ret;
 }
-#endif // TRACEALL
 
+BOOL WINAPI extDrawDibSetPalette(HDRAWDIB hdd, HPALETTE hpal)
+{
+	BOOL ret;
+	ApiName("DrawDibSetPalette");
+		
+	ret = (*pDrawDibSetPalette)(hdd, hpal);
+
+	OutTraceSYS("%s: hdd=%#x ret=%#x\n", ApiRef, hdd, ret);
+	return ret;
+}
+
+LPVOID WINAPI extDrawDibGetBuffer(HDRAWDIB hdd, LPBITMAPINFOHEADER lpbi, DWORD dwSize, DWORD dwFlags)
+{
+	LPVOID ret;
+	ApiName("DrawDibGetBuffer");
+		
+	ret = (*pDrawDibGetBuffer)(hdd, lpbi, dwSize, dwFlags);
+
+	OutTraceSYS("%s: hdd=%#x ret=%#x\n", ApiRef, hdd, ret);
+	return ret;
+}
+
+HPALETTE WINAPI extDrawDibGetPalette(HDRAWDIB hdd)
+{
+	HPALETTE ret;
+	ApiName("DrawDibGetPalette");
+		
+	ret = (*pDrawDibGetPalette)(hdd);
+
+	OutTraceSYS("%s: hdd=%#x ret=%#x\n", ApiRef, hdd, ret);
+	return ret;
+}
+
+UINT WINAPI extDrawDibRealize(HDRAWDIB hdd, HDC hdc, BOOL fBackground)
+{
+	UINT ret;
+	ApiName("DrawDibRealize");
+		
+	ret = (*pDrawDibRealize)(hdd, hdc, fBackground);
+
+	OutTraceSYS("%s: hdd=%#x ret=%#x\n", ApiRef, hdd, ret);
+	return ret;
+}
 

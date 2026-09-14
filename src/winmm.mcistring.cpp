@@ -292,7 +292,6 @@ static int mciTimeFormatToString(char *sAnswer, int iMaxLen)
 	return ret;
 }
 
-
 MCIERROR mciSendMovieString(ApiArg, LPCTSTR lpszCommand, LPTSTR lpszReturnString, UINT cchReturn, HANDLE hwndCallback)
 {
 	char NewCommand[256];
@@ -300,13 +299,47 @@ MCIERROR mciSendMovieString(ApiArg, LPCTSTR lpszCommand, LPTSTR lpszReturnString
 	char sTail[81];
 	sTail[0]=0;
 
+	OutTrace("DEBUG: init, command=\"%s\"\n", lpszCommand);
 	// v2.06.09: capture cdaudio or movie callback
 	if(!strncmp(lpszCommand, "play ", 5)) {
 		movie_info.play_callback = (DWORD_PTR)hwndCallback;
 	}
 
+	if(dxw.dwFlags6 & STRETCHMOVIES) {
+		if (sscanf(lpszCommand, "put %s destination at %ld %ld %ld %ld %s", 
+			dxw.sMovieNickName, &(rect.left), &(rect.top), &(rect.right), &(rect.bottom), sTail)>=5) {
+			rect.top = rect.left = 0;
+			if(dxw.GDIEmulationMode == GDIMODE_NONE){
+				rect.right = dxw.iSizX;
+				rect.bottom = dxw.iSizY;
+			}
+			else {
+				rect.right = dxw.GetScreenWidth();
+				rect.bottom = dxw.GetScreenHeight();
+			}
+			sprintf(NewCommand, "put %s destination at %d %d %d %d %s", 
+				dxw.sMovieNickName, rect.left, rect.top, rect.right, rect.bottom, sTail);
+			lpszCommand=NewCommand;
+			OutTraceDW("%s: replaced Command=\"%s\"\n", api, lpszCommand);
+		}
+	}
+
 	if(dxw.dwFlags5 & REMAPMCI) {
 		HWND wHandle;
+
+		if (sscanf(lpszCommand, "put %s destination at %ld %ld %ld %ld %s", 
+			dxw.sMovieNickName, &(rect.left), &(rect.top), &(rect.right), &(rect.bottom), sTail)>=5) {
+			// v2.03.19 height / width fix
+			rect.right += rect.left; // convert width to position
+			rect.bottom += rect.top; // convert height to positionB
+			rect=dxw.MapClientRect(&rect);
+			rect.right -= rect.left; // convert position to width
+			rect.bottom -= rect.top; // convert position to height
+			sprintf(NewCommand, "put %s destination at %d %d %d %d %s", 
+				dxw.sMovieNickName, rect.left, rect.top, rect.right, rect.bottom, sTail);
+			lpszCommand=NewCommand;
+			OutTraceDW("%s: replaced Command=\"%s\"\n", api, lpszCommand);
+		}
 
 		if(strstr(lpszCommand, " fullscreen")) {
 			// eliminate "fullscreen specification"
@@ -323,39 +356,12 @@ MCIERROR mciSendMovieString(ApiArg, LPCTSTR lpszCommand, LPTSTR lpszReturnString
 			// now should stretch the mciEmu.dwCurrentTrack window ???
 		}
 
-		if (sscanf(lpszCommand, "put %s destination at %ld %ld %ld %ld %s", 
-			dxw.sMovieNickName, &(rect.left), &(rect.top), &(rect.right), &(rect.bottom), sTail)>=5) {
-			if(dxw.dwFlags6 & STRETCHMOVIES){
-				rect.top = rect.left = 0;
-				if(dxw.GDIEmulationMode == GDIMODE_NONE){
-					rect.right = dxw.iSizX;
-					rect.bottom = dxw.iSizY;
-				}
-				else {
-					rect.right = dxw.GetScreenWidth();
-					rect.bottom = dxw.GetScreenHeight();
-				}
-			}
-			else {
-				// v2.03.19 height / width fix
-				rect.right += rect.left; // convert width to position
-				rect.bottom += rect.top; // convert height to position
-				rect=dxw.MapClientRect(&rect);
-				rect.right -= rect.left; // convert position to width
-				rect.bottom -= rect.top; // convert position to height
-			}
-			sprintf(NewCommand, "put %s destination at %d %d %d %d %s", 
-				dxw.sMovieNickName, rect.left, rect.top, rect.right, rect.bottom, sTail);
-			lpszCommand=NewCommand;
-			OutTraceDW("%s: replaced Command=\"%s\"\n", api, lpszCommand);
-		}
-
 		// v2.05.82 - replace window handle forcing the handle of the main window
 		// partially fixes the displacement of "Felix the Cat" Felix and Pinky intro movies.
 
 		// @#@ two spaces found in "Age of Empires Gold Edition"
 		// v2.06.16: doubled spaces eliminated in mciSendString routine
-		if(! (dxw.dwFlags5 & PUSHACTIVEMOVIE)){
+		if(! (dxw.dwFlags5 & PUSHACTIVEMOVIE) && (dxw.dwFlags6 & STRETCHMOVIES)){
 			if (sscanf(lpszCommand, "window %s handle %d", dxw.sMovieNickName, &wHandle)==2){ 
 				//sprintf(NewCommand, "window %s handle %d state restore wait", dxw.sMovieNickName, dxw.GethWnd());
 				char newHandle[20];
@@ -393,6 +399,7 @@ MCIERROR mciSendMovieString(ApiArg, LPCTSTR lpszCommand, LPTSTR lpszReturnString
 		return 0;
 	}
 
+	OutTrace("DEBUG: final command=\"%s\"\n", lpszCommand);
 	return (*pmciSendStringA)(lpszCommand, lpszReturnString, cchReturn, hwndCallback);
 }
 

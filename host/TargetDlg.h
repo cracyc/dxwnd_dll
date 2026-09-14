@@ -594,6 +594,7 @@ public:
 	BOOL	m_SDLForceStretch;
 	BOOL	m_HookSmackW32;
 	BOOL	m_HookBinkW32;
+	BOOL	m_HookWineDrawDib;
 	BOOL	m_HookDirectShow;
 	BOOL	m_ScaleDirectShow;
 	BOOL	m_IgnoreAddFilter;

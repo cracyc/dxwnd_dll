@@ -389,6 +389,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\drawdib.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\dshow.basefilter.cpp"
 				>
 			</File>
