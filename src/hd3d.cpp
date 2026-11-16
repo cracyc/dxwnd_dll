@@ -17,8 +17,10 @@
 #include "dxdds.h"
 #include "hd3d.doc.hpp" // fake include to hold documentation
 #include "d3d9blit.h"
+#include "D3DQuery9.wrap.hpp"
 
 #define HOOKD3D10ANDLATER TRUE
+//#define LOGD3D9QUERYINTERFACE
 //#define TRACEALL
 #ifndef DXW_NOTRACES
 #define D3DError(r) OutErrorD3D("%s: ERROR err=%#x(%s)\n", ApiRef, r, ExplainDDError(r))
@@ -82,6 +84,22 @@ typedef HRESULT (WINAPI *RegisterSoftwareFunction_Type)(void);
 RegisterSoftwareDevice_Type pRegisterSoftwareDevice8, pRegisterSoftwareDevice9;
 HRESULT WINAPI extRegisterSoftwareDevice8(void *, RegisterSoftwareFunction_Type);
 HRESULT WINAPI extRegisterSoftwareDevice9(void *, RegisterSoftwareFunction_Type);
+
+typedef HRESULT (WINAPI *CreateQuery9_Type)(void *, D3DQUERYTYPE, IDirect3DQuery9**);
+CreateQuery9_Type pCreateQuery9;
+HRESULT WINAPI extCreateQuery9(void *, D3DQUERYTYPE, IDirect3DQuery9**);
+
+#ifdef LOGD3D9QUERYINTERFACE
+typedef HRESULT (WINAPI *IssueQ9_Type)(void *, DWORD);
+typedef DWORD (WINAPI *GetDataSizeQ9_Type)(void *);
+typedef HRESULT (WINAPI *GetDataQ9_Type)(void *, void *, DWORD, DWORD);
+IssueQ9_Type pIssueQ9;
+GetDataSizeQ9_Type pGetDataSizeQ9;
+GetDataQ9_Type pGetDataQ9;
+HRESULT WINAPI extIssueQ9(void *, DWORD);
+DWORD WINAPI extGetDataSizeQ9(void *);
+HRESULT WINAPI extGetDataQ9(void *, void *, DWORD, DWORD);
+#endif // LOGD3D9QUERYINTERFACE
 
 //#define SCALEVERTICES
 #ifdef SCALEVERTICES
@@ -742,32 +760,32 @@ void HookD3DDevice9(void **ppD3Ddev9)
 	// 420: GetIndices
 	// 424: CreatePixelShader
 	// 428: SetPixelShader
-	// 452: GetPixelShader
-	// 456: SetPixelShaderConstantF
-	// 460: GetPixelShaderConstantF
-	// 464: SetPixelShaderConstantI
-	// 468: GetPixelShaderConstantI
-	// 472: SetPixelShaderConstantB
-	// 476: GetPixelShaderConstantB
-	// 480: DrawRectPatch
-	// 484: DrawTriPatch
-	// 488: DeletePatch
-	// 492: CreateQuery
-	// 496: SetConvolutionMonoKernel
-	// 500: ComposeRects
-	// 504: PresentEx
-	// 508: GetGPUThreadPriority
-	// 512: SetGPUThreadPriority
-	// 516: WaitForVBlank
-	// 520: CheckResourceResidency
-	// 524: SetMaximumFrameLatency
-	// 528: GetMaximumFrameLatency
-	// 532: CheckDeviceState
-	// 536: CreateRenderTargetEx
-	// 540: CreateOffscreenPlainSurfaceEx
-	// 544: CreateDepthStencilSurfaceEx
-	// 548: ResetEx
-	// 552: GetDisplayModeEx
+	// 432: GetPixelShader
+	// 436: SetPixelShaderConstantF
+	// 440: GetPixelShaderConstantF
+	// 444: SetPixelShaderConstantI
+	// 448: GetPixelShaderConstantI
+	// 452: SetPixelShaderConstantB
+	// 456: GetPixelShaderConstantB
+	// 460: DrawRectPatch
+	// 464: DrawTriPatch
+	// 468: DeletePatch
+	SetHook((void *)(**(DWORD **)ppD3Ddev9 + 472), extCreateQuery9, (void **)&pCreateQuery9, "CreateQuery(D9)");
+	// 476: SetConvolutionMonoKernel
+	// 480: ComposeRects
+	// 484: PresentEx
+	// 488: GetGPUThreadPriority
+	// 492: SetGPUThreadPriority
+	// 496: WaitForVBlank
+	// 500: CheckResourceResidency
+	// 504: SetMaximumFrameLatency
+	// 508: GetMaximumFrameLatency
+	// 512: CheckDeviceState
+	// 516: CreateRenderTargetEx
+	// 520: CreateOffscreenPlainSurfaceEx
+	// 524: CreateDepthStencilSurfaceEx
+	// 528: ResetEx
+	// 532: GetDisplayModeEx
 }
 
 // WIP
@@ -873,6 +891,25 @@ void HookSurface9(void *lpS9)
     //60: STDMETHOD(GetDC)(THIS_ HDC *phdc) PURE;
     //64: STDMETHOD(ReleaseDC)(THIS_ HDC hdc) PURE;
 }
+
+#ifdef LOGD3D9QUERYINTERFACE
+void HookQuery9(void *lpQ9)
+{
+	ApiName("dxwnd.HookQuery9");
+	OutTraceD3D("%s: Device hook for IDirect3DQuery9 interface\n", ApiRef);
+    /*** IUnknown methods ***/
+    //STDMETHOD(QueryInterface)(THIS_ REFIID riid, void** ppvObj) PURE;
+    //STDMETHOD_(ULONG,AddRef)(THIS) PURE;
+    //STDMETHOD_(ULONG,Release)(THIS) PURE;
+
+    /*** IDirect3DQuery9 methods ***/
+    //STDMETHOD(GetDevice)(THIS_ IDirect3DDevice9** ppDevice) PURE;
+    //STDMETHOD_(D3DQUERYTYPE, GetType)(THIS) PURE;
+	SetHook((void *)(*(DWORD *)lpQ9 + 20), extGetDataSizeQ9, (void **)&pGetDataSizeQ9, "GetDataSize(Q9)");
+	SetHook((void *)(*(DWORD *)lpQ9 + 24), extIssueQ9, (void **)&pIssueQ9, "Issue(Q9)");
+	SetHook((void *)(*(DWORD *)lpQ9 + 28), extGetDataQ9, (void **)&pGetDataQ9, "GetData(Q9)");
+}
+#endif // LOGD3D9QUERYINTERFACE
 
 typedef enum {
 	TYPE_OBJECT_UNKNOWN = 0,
@@ -1164,6 +1201,46 @@ UINT WINAPI extGetAdapterCount9(void *lpd3d)
 	return res;
 }
 
+static char Hex2Char(char *c)
+{
+	char hex = 0;
+	for(int i=0; i<2; i++){
+		hex <<= 4;
+		if((*c >= '0') && (*c <= '9')) hex |= *c - '0';
+		if((*c >= 'a') && (*c <= 'f')) hex |= *c - 'a' + 10;
+		if((*c >= 'A') && (*c <= 'F')) hex |= *c - 'A' + 10;
+		c++;
+	}
+	return hex;
+}
+
+static GUID String2GUID(char *p, BOOL *valid)
+{
+	*valid = FALSE;
+	GUID g;
+	while(TRUE){ // fake loop
+		if(*p++ != '{') break;
+		if(sscanf(p, "%x", &g.Data1) != 1) break;
+		p+=8;
+		if(*p++ != '-') break;
+		if(sscanf(p, "%x", &g.Data2) != 1) break;
+		p+=4;
+		if(*p++ != '-') break;
+		if(sscanf(p, "%x", &g.Data3) != 1) break;
+		p+=4;
+		if(*p++ != '-') break;
+		for(int i = 0; i < 8; i++) {
+			g.Data4[i]= Hex2Char(p);
+			p += 2;
+			if(i == 1) if(*p++ != '-') break;
+		}
+		if(*p++ != '}') break;
+		*valid = TRUE; // passed last check ...
+		break;
+	}
+	return g;
+}
+
 HRESULT WINAPI extGetAdapterIdentifier8(void *pd3dd, UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIFIER8 *pIdentifier)
 {
 	HRESULT res;
@@ -1186,6 +1263,101 @@ HRESULT WINAPI extGetAdapterIdentifier8(void *pd3dd, UINT Adapter, DWORD Flags, 
 		OutTraceD3D("\tGUID=%s\n", sGUID(&(pIdentifier->DeviceIdentifier)));
  		OutTraceD3D("\tWHQLLevel=%#x\n", pIdentifier->WHQLLevel);
 	}
+
+	if(dxw.dwFlags20 & SPOOFADAPTERID) {
+		D3DADAPTER_IDENTIFIER8 fakeId;
+		char sValue[MAX_DEVICE_IDENTIFIER_STRING];
+		char sAdapter[20];
+		sprintf(sAdapter,"Adapter%d", Adapter);
+		char *inifile = ".\\fake_adapters.ini";
+		OutTraceD3D("%s: HACKED adapter=%d\n", ApiRef, Adapter);
+		memcpy(&fakeId, pIdentifier, sizeof(D3DADAPTER_IDENTIFIER8));
+		GetPrivateProfileStringA(sAdapter, "Driver", "?", sValue, MAX_DEVICE_IDENTIFIER_STRING, inifile);
+		if(sValue[0] != '?') {
+			strncpy(fakeId.Driver, sValue, MAX_DEVICE_IDENTIFIER_STRING);
+			OutTraceD3D("\tDriver=%s\n", fakeId.Driver);
+		}
+		GetPrivateProfileStringA(sAdapter, "Description", "?", sValue, MAX_DEVICE_IDENTIFIER_STRING, inifile);
+		if(sValue[0] != '?') {
+			strncpy(fakeId.Description, sValue, MAX_DEVICE_IDENTIFIER_STRING);
+			OutTraceD3D("\tDescription=%s\n", fakeId.Description);
+		}
+		GetPrivateProfileStringA(sAdapter, "Version", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD lval, hval;
+			if(sscanf(sValue, "%x.%x", &hval, &lval) == 2){
+				fakeId.DriverVersion.HighPart = hval;
+				fakeId.DriverVersion.LowPart = lval;
+				OutTraceD3D("\tVersion=%#x.%#x\n", fakeId.DriverVersion.HighPart, fakeId.DriverVersion.LowPart);
+			}
+			else {
+				OutTraceD3D("\tVersion syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "VendorId", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD val;
+			if(sscanf(sValue, "%x", &val) == 1){
+				fakeId.VendorId = val;
+				OutTraceD3D("\tVendorId=%#x\n", fakeId.VendorId);
+			}
+			else {
+				OutTraceD3D("\tVendorId syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "DeviceId", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD val;
+			if(sscanf(sValue, "%x", &val) == 1){
+				fakeId.DeviceId = val;
+				OutTraceD3D("\tDeviceId=%#x\n", fakeId.DeviceId);
+			}
+			else {
+				OutTraceD3D("\tDeviceId syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "SubSysId", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD val;
+			if(sscanf(sValue, "%x", &val) == 1){
+				fakeId.SubSysId = val;
+				OutTraceD3D("\tSubSysId=%#x\n", fakeId.SubSysId);
+			}
+			else {
+				OutTraceD3D("\tSubSysId syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "Revision", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD val;
+			if(sscanf(sValue, "%x", &val) == 1){
+				fakeId.Revision = val;
+				OutTraceD3D("\tRevision=%#x\n", fakeId.Revision);
+			}
+			else {
+				OutTraceD3D("\tRevision syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileString(sAdapter, "GUID", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			BOOL valid;
+			GUID g = String2GUID(sValue, &valid);
+			if(valid){
+				fakeId.DeviceIdentifier = (GUID)g;
+				OutTraceD3D("\tGUID=%s\n", sGUID(&fakeId.DeviceIdentifier));
+			}
+			else {
+				OutTraceD3D("\tGUID syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "WHQLLevel", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			fakeId.WHQLLevel = atoi(sValue);
+			OutTraceD3D("\tWHQLLevel=%d\n", fakeId.WHQLLevel);
+		}
+		memcpy((void *)pIdentifier, &fakeId, sizeof(D3DADAPTER_IDENTIFIER8));
+	}
+
 	return res;
 }
 
@@ -1210,6 +1382,107 @@ HRESULT WINAPI extGetAdapterIdentifier9(void *pd3dd, UINT Adapter, DWORD Flags, 
 		OutTraceD3D("\tSubSysId=%#x\n", pIdentifier->SubSysId);
 		OutTraceD3D("\tWHQLLevel=%#x\n", pIdentifier->WHQLLevel);
 	}
+
+	if(dxw.dwFlags20 & SPOOFADAPTERID) {
+		D3DADAPTER_IDENTIFIER9 fakeId;
+		char sValue[MAX_DEVICE_IDENTIFIER_STRING];
+		char sAdapter[20];
+		sprintf(sAdapter,"Adapter%d", Adapter);
+		char *inifile = ".\\fake_adapters.ini";
+		OutTraceD3D("%s: HACKED adapter=%d\n", ApiRef, Adapter);
+		memcpy(&fakeId, pIdentifier, sizeof(D3DADAPTER_IDENTIFIER9));
+		GetPrivateProfileStringA(sAdapter, "Driver", "?", sValue, MAX_DEVICE_IDENTIFIER_STRING, inifile);
+		if(sValue[0] != '?') {
+			strncpy(fakeId.Driver, sValue, MAX_DEVICE_IDENTIFIER_STRING);
+			OutTraceD3D("\tDriver=%s\n", fakeId.Driver);
+		}
+		GetPrivateProfileStringA(sAdapter, "Description", "?", sValue, MAX_DEVICE_IDENTIFIER_STRING, inifile);
+		if(sValue[0] != '?') {
+			strncpy(fakeId.Description, sValue, MAX_DEVICE_IDENTIFIER_STRING);
+			OutTraceD3D("\tDescription=%s\n", fakeId.Description);
+		}
+		GetPrivateProfileStringA(sAdapter, "DeviceName", "?", sValue, 32, inifile);
+		if(sValue[0] != '?') {
+			strncpy(fakeId.DeviceName, sValue, 32);
+			OutTraceD3D("\tDeviceName=%s\n", fakeId.DeviceName);
+		}
+		GetPrivateProfileStringA(sAdapter, "Version", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD lval, hval;
+			if(sscanf(sValue, "%x.%x", &hval, &lval) == 2){
+				fakeId.DriverVersion.HighPart = hval;
+				fakeId.DriverVersion.LowPart = lval;
+				OutTraceD3D("\tVersion=%#x.%#x\n", fakeId.DriverVersion.HighPart, fakeId.DriverVersion.LowPart);
+			}
+			else {
+				OutTraceD3D("\tVersion syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "VendorId", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD val;
+			if(sscanf(sValue, "%x", &val) == 1){
+				fakeId.VendorId = val;
+				OutTraceD3D("\tVendorId=%#x\n", fakeId.VendorId);
+			}
+			else {
+				OutTraceD3D("\tVendorId syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "DeviceId", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD val;
+			if(sscanf(sValue, "%x", &val) == 1){
+				fakeId.DeviceId = val;
+				OutTraceD3D("\tDeviceId=%#x\n", fakeId.DeviceId);
+			}
+			else {
+				OutTraceD3D("\tDeviceId syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "SubSysId", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD val;
+			if(sscanf(sValue, "%x", &val) == 1){
+				fakeId.SubSysId = val;
+				OutTraceD3D("\tSubSysId=%#x\n", fakeId.SubSysId);
+			}
+			else {
+				OutTraceD3D("\tSubSysId syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "Revision", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			DWORD val;
+			if(sscanf(sValue, "%x", &val) == 1){
+				fakeId.Revision = val;
+				OutTraceD3D("\tRevision=%#x\n", fakeId.Revision);
+			}
+			else {
+				OutTraceD3D("\tRevision syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileString(sAdapter, "GUID", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			BOOL valid;
+			GUID g = String2GUID(sValue, &valid);
+			if(valid){
+				fakeId.DeviceIdentifier = (GUID)g;
+				OutTraceD3D("\tGUID=%s\n", sGUID(&fakeId.DeviceIdentifier));
+			}
+			else {
+				OutTraceD3D("\tGUID syntax ERROR\n");
+			}
+		}
+		GetPrivateProfileStringA(sAdapter, "WHQLLevel", "?", sValue, 80, inifile);
+		if(sValue[0] != '?') {
+			fakeId.WHQLLevel = atoi(sValue);
+			OutTraceD3D("\tWHQLLevel=%d\n", fakeId.WHQLLevel);
+		}
+		memcpy((void *)pIdentifier, &fakeId, sizeof(D3DADAPTER_IDENTIFIER8));
+
+	}
+
 	return res;
 }
 
@@ -3233,6 +3506,76 @@ UINT WINAPI extGetAvailableTextureMem8(void *lpd3dd)
 UINT WINAPI extGetAvailableTextureMem9(void *lpd3dd)
 { return extGetAvailableTextureMem(9, pGetAvailableTextureMem9, lpd3dd); }
 
+#ifndef DXW_NOTRACES
+static char *sQueryType(D3DQUERYTYPE Type)
+{
+	char *s;
+	switch(Type){
+		case D3DQUERYTYPE_VCACHE: s = "VCACHE"; break;
+		case D3DQUERYTYPE_RESOURCEMANAGER: s = "RESOURCEMANAGER"; break;
+		case D3DQUERYTYPE_VERTEXSTATS: s = "VERTEXSTATS"; break;
+		case D3DQUERYTYPE_EVENT: s = "EVENT"; break;
+		case D3DQUERYTYPE_OCCLUSION: s = "OCCLUSION"; break;
+		case D3DQUERYTYPE_TIMESTAMP: s = "TIMESTAMP"; break;
+		case D3DQUERYTYPE_TIMESTAMPDISJOINT: s = "TIMESTAMPDISJOINT"; break;
+		case D3DQUERYTYPE_TIMESTAMPFREQ: s = "TIMESTAMPFREQ"; break;
+		case D3DQUERYTYPE_PIPELINETIMINGS: s = "PIPELINETIMINGS"; break;
+		case D3DQUERYTYPE_INTERFACETIMINGS: s = "INTERFACETIMINGS"; break;
+		case D3DQUERYTYPE_VERTEXTIMINGS: s = "VERTEXTIMINGS"; break;
+		case D3DQUERYTYPE_PIXELTIMINGS: s = "PIXELTIMINGS"; break;
+		case D3DQUERYTYPE_BANDWIDTHTIMINGS: s = "BANDWIDTHTIMINGS"; break;
+		case D3DQUERYTYPE_CACHEUTILIZATION: s = "CACHEUTILIZATION"; break;
+		case D3DQUERYTYPE_MEMORYPRESSURE: s = "MEMORYPRESSURE"; break;
+		default: s = "???"; break;
+	}
+	return s;
+}
+#endif // DXW_NOTRACES
+
+extern IDirect3DQuery9 *fakeQueryEvent;
+extern IDirect3DQuery9 *fakeQueryOcclusion;
+HRESULT WINAPI extCreateQuery9(void *lpd3dd, D3DQUERYTYPE Type, IDirect3DQuery9** ppQuery)
+{
+	HRESULT res;
+	ApiName("IDirect3DDevice9::CreateQuery");
+	OutTraceD3D("%s: d3dd=%#x Type=%d(%s) ppQuery=%#x\n", ApiRef, lpd3dd, Type, sQueryType(Type));
+
+	res = (*pCreateQuery9)(lpd3dd, Type, ppQuery);
+
+	if(res && (dxw.dwFlags20 & BYPASSD3D9QUERY)){
+		if(ppQuery){
+			// create a fake IDirect3DQuery9 COM object
+			switch(Type){
+				case D3DQUERYTYPE_OCCLUSION: 
+				case D3DQUERYTYPE_EVENT: 
+					OutTraceD3D("%s: create dxwD3DQuery9 object type=%d\n", ApiRef, Type);
+					dxwDirect3DQuery9 *pQ = new dxwDirect3DQuery9;
+					pQ->Initialize(Type, (DWORD)pQ, (IDirect3DDevice9*)lpd3dd);
+					*ppQuery = (IDirect3DQuery9 *)pQ;
+					OutTraceD3D("%s: created dxwD3DQuery9 object pQ=%#x\n", ApiRef, pQ);
+					return D3D_OK;
+					break;
+			}
+		}
+		else {
+			res = D3D_OK;
+			switch(Type){
+				case D3DQUERYTYPE_OCCLUSION: 
+				case D3DQUERYTYPE_EVENT: 
+					OutTraceD3D("%s: pertending query is supported\n", ApiRef);
+					return D3D_OK;
+					break;
+			}
+		}
+	}
+
+#ifdef LOGD3D9QUERYINTERFACE
+	if(!res && ppQuery) HookQuery9(*ppQuery);
+#endif // LOGD3D9QUERYINTERFACE
+	OutTraceD3D("%s: res=%#x\n", ApiRef, res);
+	return res;
+}
+
 static HRESULT WINAPI extTestCooperativeLevel(int d3dversion, TestCooperativeLevel_Type pTestCooperativeLevel, void *lpd3dd)
 {
 	HRESULT res;
@@ -4287,6 +4630,50 @@ HRESULT WINAPI extUnlockRectS8(void *pS8)
 	}
 	return res;
 }
+
+#ifdef LOGD3D9QUERYINTERFACE
+HRESULT WINAPI extIssueQ9(void *pQ9, DWORD dwIssueFlags)
+{
+	HRESULT res;
+	ApiName("IDirect3DQuery9::Issue");
+	char *sFlags = dwIssueFlags == 1 ? "END" : (dwIssueFlags == 2 ? "BEGIN" : "???");
+	OutTraceD3D("%s: pQ=%#x flags=%#x(%s)\n", ApiRef, pQ9, dwIssueFlags, sFlags);
+
+	res = (*pIssueQ9)(pQ9, dwIssueFlags);
+	if(res) {
+		OutTraceD3D("%s: res=%#x(%s)\n", ApiRef, res, ExplainDDError(res));
+	}
+	return res;
+}
+
+DWORD WINAPI extGetDataSizeQ9(void *pQ9)
+{
+	HRESULT res;
+	ApiName("IDirect3DQuery9::GetDataSize");
+	OutTraceD3D("%s: pQ=%#x\n", ApiRef, pQ9);
+
+	res = (*pGetDataSizeQ9)(pQ9);
+	OutTraceD3D("%s: pQ=%#x res(size)=%d\n", ApiRef, pQ9, res);
+	return res;
+}
+
+HRESULT WINAPI extGetDataQ9(void *pQ9, void* pData, DWORD dwSize, DWORD dwGetDataFlags)
+{
+	HRESULT res;
+	ApiName("IDirect3DQuery9::GetData");
+	OutTrace("%s: pQ=%#x data=%#x size=%d flags=%#x\n", ApiRef, pQ9, pData, dwSize, dwGetDataFlags,
+		dwGetDataFlags == D3DGETDATA_FLUSH ? "FLUSH" : (dwGetDataFlags == 0 ? "NULL" : "???"));
+
+	res = (*pGetDataQ9)(pQ9, pData, dwSize, dwGetDataFlags);
+	if((res == S_OK) || (res == S_FALSE)) {
+		OutTraceD3D("%s: res=%#x(%s)\n", ApiRef, res, res ? "UNAVAIL" : "AVAIL");
+	}
+	else {
+		OutTraceD3D("%s: res=%#x(%s)\n", ApiRef, res, ExplainDDError(res));
+	}
+	return res;
+}
+#endif
 
 #ifdef SCALEVERTICES
 HRESULT WINAPI extDrawPrimitiveUP(ApiArg, DrawPrimitiveUP_Type pDrawPrimitiveUP, void *pS, D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, CONST void *pVertexStreamZeroData, UINT VertexStreamZeroStride)

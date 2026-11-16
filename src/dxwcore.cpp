@@ -382,6 +382,7 @@ void dxwCore::InitTarget(TARGETMAP *target)
 	iMaxH = target->resh;
 	*sMovieNickName = 0;
 	*sAudioNickName = 0;
+	gFakeWinDriveLetter = 0;
 
 	hWnd = 0;
 	// note: Windowize and LockedRes have the same initial value, but LockedRes remains constant
@@ -665,7 +666,7 @@ void dxwCore::InitTarget(TARGETMAP *target)
 		}
 	}
 
-	if(dxw.dwFlags14 & SAFEHEAP){
+	if(dwFlags14 & SAFEHEAP){
 		dxw.nHeaps = GetProcessHeaps(0, NULL);
 		if(dxw.nHeaps != 0){
 			dxw.pHeaps = (PHANDLE)malloc(dxw.nHeaps * sizeof(HANDLE));
@@ -785,6 +786,17 @@ void dxwCore::InitTarget(TARGETMAP *target)
 		dwFlags9 |= HOTREGISTRY;
 
 	CDADrive = target->CDADrive;
+
+	if(dwFlags20 & USEDOSDEVICES){
+		if(dwFlags10 & FAKECDDRIVE){
+			CreateDOSDrive(FakeCDDrive, DXW_FAKE_CD);
+		}
+		if(dwFlags10 & FAKEHDDRIVE){
+			CreateDOSDrive(FakeHDDrive, DXW_FAKE_HD);
+		}
+	}
+
+
 }
 
 void dxwCore::SetScreenSize(void) 
@@ -2448,7 +2460,12 @@ void dxwCore::FixWindow(HWND hwnd, DWORD dwStyle, DWORD dwExStyle, int x, int y,
 		(*pSetWindowLong)(hwnd, GWL_STYLE, dwStyle);
 		(*pSetWindowLong)(hwnd, GWL_EXSTYLE, dwExStyle);
 	}
-	(*pMoveWindow)(hwnd, x, y, nWidth, nHeight, FALSE);
+	if(dxw.dwFlags20 & NOSENDCHANGING) {
+		(*pSetWindowPos)((HWND)hwnd, 0, x, y, nWidth, nHeight, SWP_NOSENDCHANGING);
+	}
+	else {
+		(*pMoveWindow)(hwnd, x, y, nWidth, nHeight, FALSE);
+	}
 	if(dwStyle & WS_CLIPCHILDREN) (*pRedrawWindow)(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ALLCHILDREN); // v2.06.14; Crazyc fix
 	if(dwFlags9 & LOCKTOPZORDER) (*pSetWindowPos)(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_SHOWWINDOW|SWP_NOMOVE|SWP_NOSIZE);
 

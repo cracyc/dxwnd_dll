@@ -29,7 +29,7 @@ extern void DumpBitmap(char *, HBITMAP);
 #define IfTraceError()
 #endif
 
-#define TRACEALL
+//#define TRACEALL
 //#define TRACEPOINTS
 //#define TRACEWAITOBJECTS
 //#define TRACESYSCALLS
@@ -1588,7 +1588,7 @@ LONG WINAPI extSetWindowLong(ApiArg, HWND hwnd, int nIndex, LONG dwNewLong, SetW
 {
 	LONG res;
 
-	OutTraceGDI("%s: hwnd=%#x, Index=%#x(%s) Val=%#x\n", 
+	OutTraceGDI("%s: hwnd=%#x Index=%#x(%s) Val=%#x\n", 
 		ApiRef, hwnd, nIndex, ExplainSetWindowIndex(nIndex), dwNewLong);
 
 	if(dxw.dwFlags11 & CUSTOMLOCALE){
@@ -1675,6 +1675,11 @@ LONG WINAPI extSetWindowLong(ApiArg, HWND hwnd, int nIndex, LONG dwNewLong, SetW
 				// hook extWindowProc to main win ....
 				if(dxw.IsDesktop(hwnd)){
 					if(OldProc==extWindowProc) OldProc=dxwws.GetProc(hwnd);
+					if(((DWORD)OldProc & 0xFFFF0000) == 0xFFFF0000) {
+						OutTraceGDI("%s: DESKTOP skip WinProc hook OldProc=%#x\n", ApiRef, OldProc);
+						res=(LONG)OldProc;
+						break;
+					}
 					dxwws.PutProc(hwnd, (WNDPROC)dwNewLong);
 					res=(LONG)OldProc;
 					SetLastError(0);
@@ -1722,7 +1727,7 @@ LONG WINAPI extSetWindowLong(ApiArg, HWND hwnd, int nIndex, LONG dwNewLong, SetW
 		res=(*pSetWindowLong)(hwnd, nIndex, dwNewLong);
 	}
 
-	OutTraceGDI("%s: hwnd=%#x nIndex=%#x Val=%#x res=%#x\n", ApiRef, hwnd, nIndex, dwNewLong, res);
+	OutTraceGDI("%s: hwnd=%#x Index=%#x Val=%#x res=%#x\n", ApiRef, hwnd, nIndex, dwNewLong, res);
 	return res;
 }
 
@@ -3790,15 +3795,6 @@ static HWND WINAPI CreateWindowCommon(
 		dxwcws.Put(hwnd, 0, origx, origy, origw, origh);
 	}
 
-	//if(dxw.dwDFlags2 & EXPERIMENTAL4){
-	//		(*pSetWindowLong)(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-	//		if(!pSetLayeredWindowAttributes) pSetLayeredWindowAttributes = SetLayeredWindowAttributes;
-	//		(*pSetLayeredWindowAttributes)(hwnd,
-	//		   RGB(0, 0, 0),				// The transparent color
-	//		   255,							// Opacity of the window
-	//		   LWA_ALPHA | LWA_COLORKEY);	// Enable both features
-	//}
-
 	OutTraceGDI("%s: created hwnd ret=%#x\n", ApiRef, hwnd);
 	return hwnd;
 }
@@ -3859,7 +3855,7 @@ HWND WINAPI extCreateWindowExW(
 		if (nHeight==CW_USEDEFAULT) strcpy(hString,"CW_USEDEFAULT"); 
 		else sprintf(hString,"%d", nHeight);
 		OutTrace("%s: class=\"%ls\" wname=\"%ls\" pos=(%s,%s) size=(%s,%s) Style=%#x(%s) ExStyle=%#x(%s) hWndParent=%#x%s hMenu=%#x depth=%d\n",
-			ApiRef, ClassToWStr(lpClassName), lpWindowName, xString, yString, wString, hString, 
+			ApiRef, ClassToWStr(lpClassName), lpWindowName ? lpWindowName : L"(NULL)", xString, yString, wString, hString, 
 			dwStyle, ExplainStyle(dwStyle, sStyle, 256), dwExStyle, ExplainExStyle(dwExStyle, sExStyle, 256),
 			hWndParent, hWndParent==HWND_MESSAGE?"(HWND_MESSAGE)":"", hMenu, InMainWinCreation);
 	}
@@ -3934,7 +3930,7 @@ HWND WINAPI extCreateWindowExA(
 		if (nHeight==CW_USEDEFAULT) strcpy(hString,"CW_USEDEFAULT"); 
 		else sprintf(hString,"%d", nHeight);
 		OutTrace("%s: class=\"%s\" wname=\"%s\" pos=(%s,%s) size=(%s,%s) Style=%#x(%s) ExStyle=%#x(%s) hWndParent=%#x%s hMenu=%#x depth=%d\n",
-			ApiRef, ClassToStr(lpClassName), lpWindowName, xString, yString, wString, hString, 
+			ApiRef, ClassToStr(lpClassName), lpWindowName ? lpWindowName : "(NULL)", xString, yString, wString, hString, 
 			dwStyle, ExplainStyle(dwStyle, sStyle, 256), dwExStyle, ExplainExStyle(dwExStyle, sExStyle, 256),
 			hWndParent, hWndParent==HWND_MESSAGE?"(HWND_MESSAGE)":"", hMenu, InMainWinCreation);
 	}
@@ -9381,11 +9377,11 @@ BOOL WINAPI extIntersectRect(LPRECT lprcDst, CONST RECT *lprcSrc1, CONST RECT *l
 		ApiRef, lprcSrc2->left, lprcSrc2->top, lprcSrc2->right, lprcSrc2->bottom);
 	ret = (*pIntersectRect)(lprcDst, lprcSrc1, lprcSrc2);
 	if(ret) {
-		OutTrace("%s: dest=(%d,%d)-(%d,%d)\n", 
+		OutTraceGDI("%s: dest=(%d,%d)-(%d,%d)\n", 
 			ApiRef, lprcDst->left, lprcDst->top, lprcDst->right, lprcDst->bottom);
 	} 
 	else {
-		OutTrace("%s: ERROR err=%d\n", ApiRef, GetLastError());
+		OutErrorGDI("%s: ERROR err=%d\n", ApiRef, GetLastError());
 	}
 	return ret;
 }

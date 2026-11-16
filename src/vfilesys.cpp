@@ -22,7 +22,7 @@ void PeekHotKeys()
 	void HandleHotKeys(HWND, UINT, LPARAM, WPARAM);
 	// v2.05.27: skip if PeekMessageA is unhooked
 	if(pPeekMessageA && (*pPeekMessageA)(&msg, NULL, WM_SYSKEYDOWN, WM_SYSKEYDOWN, TRUE)){
-		OutTrace("GetFakeDriverPath: WM_SYSKEYDOWN event hwnd=%#x msg=%#x l/wparam=%#x/%#x\n",
+		OutTrace("PeekHotKeys: WM_SYSKEYDOWN event hwnd=%#x msg=%#x l/wparam=%#x/%#x\n",
 			msg.hwnd, msg.message, msg.lParam, msg.wParam);
 		HandleHotKeys(msg.hwnd, msg.message, msg.lParam, msg.wParam);
 	}
@@ -185,6 +185,13 @@ LPCSTR dxwTranslatePathA(LPCSTR lpFileName, DWORD *mapping)
 		} while(FALSE);
 	}
 
+	if(dxw.dwFlags20 & USEDOSDEVICES){
+		if(hasDriveLetter){
+			//if(lpFileName[0] == dxw.FakeCD) ...
+		}
+		return lpFileName;
+	}
+
 	do { // fake loop
 		// v2.04.84: find matching for drive name. Do not look for 3 chars (like "E:\") because
 		// some games omit the backslash. For instance, "Need for Speed II" looks for "X:NFSW.EXE"
@@ -307,6 +314,13 @@ LPCWSTR dxwTranslatePathW(LPCWSTR lpFileName, DWORD *mapping)
 		} while(FALSE);
 	}
 
+	if(dxw.dwFlags20 & USEDOSDEVICES){
+		if(hasDriveLetter){
+			//if(lpFileName[0] == dxw.FakeCD) ...
+		}
+		return lpFileName;
+	}
+
 	do { // fake loop
 		// v2.04.84: find matching for drive name. Do not look for 3 chars (like "E:\") because
 		// some games omit the backslash. For instance, "Need for Speed II" looks for "X:NFSW.EXE"
@@ -386,6 +400,10 @@ LPCSTR dxwUntranslatePathA(LPCSTR lpFileName, DWORD *mapping)
 
 	dwMapping = DXW_NO_FAKE;
 
+	if(dxw.dwFlags20 & USEDOSDEVICES){
+		return lpFileName;
+	}
+
 	// safeguard
 	if(lpFileName == NULL) return NULL;
 
@@ -437,6 +455,10 @@ LPWSTR dxwUntranslatePathW(LPWSTR lpFileName, DWORD *mapping)
 	// safeguard
 	if(lpFileName == NULL) return NULL;
 
+	if(dxw.dwFlags20 & USEDOSDEVICES){
+		return lpFileName;
+	}
+
 	if(wcslen(lpFileName) > 1)
 		if(lpFileName[1]==L':') hasDriveLetter = TRUE;
 
@@ -484,8 +506,8 @@ LPWSTR dxwUntranslatePathW(LPWSTR lpFileName, DWORD *mapping)
 DWORD dxwVirtualDriveTypeA(LPCSTR lpPath)
 {
 	char DriveLetter = toupper(lpPath[0]);
-	if(DriveLetter==dxw.FakeHDDrive) return DXW_FAKE_HD;
-	if(DriveLetter==dxw.FakeCDDrive) return DXW_FAKE_CD;
+	if((dxw.dwFlags10 & FAKEHDDRIVE) && (DriveLetter==dxw.FakeHDDrive)) return DXW_FAKE_HD;
+	if((dxw.dwFlags10 & FAKECDDRIVE) && (DriveLetter==dxw.FakeCDDrive)) return DXW_FAKE_CD;
 	return DXW_NO_FAKE;
 }
 
@@ -493,7 +515,7 @@ DWORD dxwVirtualDriveTypeW(LPCWSTR lpPath)
 {
 	char DriveLetter;
 	wctomb(&DriveLetter, lpPath[0]);
-	if(DriveLetter==dxw.FakeHDDrive) return DXW_FAKE_HD;
-	if(DriveLetter==dxw.FakeCDDrive) return DXW_FAKE_CD;
+	if((dxw.dwFlags10 & FAKEHDDRIVE) && (DriveLetter==dxw.FakeHDDrive)) return DXW_FAKE_HD;
+	if((dxw.dwFlags10 & FAKECDDRIVE) && (DriveLetter==dxw.FakeCDDrive)) return DXW_FAKE_CD;
 	return DXW_NO_FAKE;
 }

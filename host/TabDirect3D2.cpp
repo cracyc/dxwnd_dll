@@ -68,6 +68,7 @@ void CTabDirect3D2::DoDataExchange(CDataExchange* pDX)
 	DDX_Check(pDX, IDC_NOTNLDEVICE, cTarget->m_NoTnLDevice);
 	DDX_Check(pDX, IDC_FOGVERTEXCAP, cTarget->m_FogVertexCap);
 	DDX_Check(pDX, IDC_FOGTABLECAP, cTarget->m_FogTableCap);
+	DDX_Check(pDX, IDC_SPOOFADAPTERID, cTarget->m_SpoofAdapterId);
 }
 
 void CTabDirect3D2::OnBnClickedForcesSwapEffect()

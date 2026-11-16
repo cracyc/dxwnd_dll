@@ -1079,6 +1079,18 @@ MCIERROR WINAPI extmciSendString(ApiArg, LPSTR lpszCommand, LPSTR lpszReturnStri
 			if(!strcmp(sNickName, dxw.sAudioNickName)) isCDAudio = TRUE;
 			if(!strcmp(sNickName, dxw.sMovieNickName)) isMovie = TRUE;
 
+
+			if (!strncmp(lpszCommand, "play ", 5)) {
+				if (strstr(lpszCommand, ".avi ") || // v2.06.16 @#@ "Entombed enhanced" intro movies
+					strstr(lpszCommand, ".avi\"")){
+					isMovie = TRUE;
+				}
+				if (strstr(lpszCommand, ".wav ") || // v2.06.16 
+					strstr(lpszCommand, ".wav\"")){
+					isMovie = TRUE;
+				}
+			}
+					
 			// some commands imply a device type
 			if(!(isCDAudio | isMovie)){
 				if(!strcmp(sCommand, "window")) {

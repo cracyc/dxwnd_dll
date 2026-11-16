@@ -965,6 +965,7 @@ void SetTargetFromDlg(TARGETMAP *t, CTargetDlg *dlg)
 	if(dlg->m_ForcesNULL) t->flags11 |= FORCESNULL;
 	if(dlg->m_NoRampDevice) t->flags14 |= NORAMPDEVICE;
 	if(dlg->m_FogVertexCap) t->flags16 |= FOGVERTEXCAP;
+	if(dlg->m_SpoofAdapterId) t->flags20 |= SPOOFADAPTERID;
 	if(dlg->m_FogTableCap) t->flags16 |= FOGTABLECAP;
 	if(dlg->m_NoRGBDevice) t->flags14 |= NORGBDEVICE;
 	if(dlg->m_NoMMXDevice) t->flags14 |= NOMMXDEVICE;
@@ -1292,6 +1293,7 @@ void SetTargetFromDlg(TARGETMAP *t, CTargetDlg *dlg)
 	if(dlg->m_ResetMultiVolume) t->flags18 |= RESETMULTIVOLUME;
 	if(dlg->m_RemapRootFolder) t->flags19 |= REMAPROOTFOLDER;
 	if(dlg->m_HandleCDLock) t->flags20 |= HANDLECDLOCK;
+	if(dlg->m_UseDOSDevices) t->flags20 |= USEDOSDEVICES;
 	if(dlg->m_EscapedIniFiles) t->flags20 |= ESCAPEDINIFILES;
 	if(dlg->m_SetCDAudioPath) t->flags14 |= SETCDAUDIOPATH;
 	if(dlg->m_CDHack) t->flags17 |= CDHACK;
@@ -1308,6 +1310,10 @@ void SetTargetFromDlg(TARGETMAP *t, CTargetDlg *dlg)
 	if(dlg->m_NoPaletteAnimation) t->flags20 |= NOPALETTEANIMATION;
 	if(dlg->m_ForceNoPageLock) t->flags20 |= FORCENOPAGELOCK;
 	if(dlg->m_SetZoomed) t->flags20 |= SETZOOMED;
+	if(dlg->m_BypassD3D9Query) t->flags20 |= BYPASSD3D9QUERY;
+	if(dlg->m_NoSendChanging) t->flags20 |= NOSENDCHANGING;
+	if(dlg->m_ForceDefSysPalette) t->flags20 |= FORCEDEFSYSPALETTE;
+	if(dlg->m_PreferDxWndCodec) t->flags20 |= PREFERDXWNDCODEC;
 	if(dlg->m_SetResolution) t->flags19 |= SETRESOLUTION;
 
 	if(dlg->m_DIBPalette) t->flags19 |= DIBPALETTE;
@@ -1715,6 +1721,7 @@ static void SetDlgFromTarget(TARGETMAP *t, CTargetDlg *dlg)
 	dlg->m_ForcesNULL = t->flags11 & FORCESNULL ? 1 : 0;
 	dlg->m_NoRampDevice = t->flags14 & NORAMPDEVICE ? 1 : 0;
 	dlg->m_FogVertexCap = t->flags16 & FOGVERTEXCAP ? 1 : 0;
+	dlg->m_SpoofAdapterId = t->flags20 & SPOOFADAPTERID ? 1 : 0;
 	dlg->m_FogTableCap = t->flags16 & FOGTABLECAP ? 1 : 0;
 	dlg->m_NoRGBDevice = t->flags14 & NORGBDEVICE ? 1 : 0;
 	dlg->m_NoMMXDevice = t->flags14 & NOMMXDEVICE ? 1 : 0;
@@ -2139,6 +2146,7 @@ static void SetDlgFromTarget(TARGETMAP *t, CTargetDlg *dlg)
 	dlg->m_ResetMultiVolume = t->flags18 & RESETMULTIVOLUME ? 1 : 0;
 	dlg->m_RemapRootFolder = t->flags19 & REMAPROOTFOLDER ? 1 : 0;
 	dlg->m_HandleCDLock = t->flags20 & HANDLECDLOCK ? 1 : 0;
+	dlg->m_UseDOSDevices = t->flags20 & USEDOSDEVICES ? 1 : 0;
 	dlg->m_EscapedIniFiles = t->flags20 & ESCAPEDINIFILES ? 1 : 0;
 	dlg->m_SetCDAudioPath = t->flags14 & SETCDAUDIOPATH ? 1 : 0;
 	dlg->m_CDHack = t->flags17 & CDHACK ? 1 : 0;
@@ -2155,6 +2163,10 @@ static void SetDlgFromTarget(TARGETMAP *t, CTargetDlg *dlg)
 	dlg->m_NoPaletteAnimation = t->flags20 & NOPALETTEANIMATION ? 1 : 0;
 	dlg->m_ForceNoPageLock = t->flags20 & FORCENOPAGELOCK ? 1 : 0;
 	dlg->m_SetZoomed = t->flags20 & SETZOOMED ? 1 : 0;
+	dlg->m_BypassD3D9Query = t->flags20 & BYPASSD3D9QUERY ? 1 : 0;
+	dlg->m_NoSendChanging = t->flags20 & NOSENDCHANGING ? 1 : 0;
+	dlg->m_ForceDefSysPalette = t->flags20 & FORCEDEFSYSPALETTE ? 1 : 0;
+	dlg->m_PreferDxWndCodec = t->flags20 & PREFERDXWNDCODEC ? 1 : 0;
 	dlg->m_SetResolution = t->flags19 & SETRESOLUTION ? 1 : 0;
 	dlg->m_DIBPalette = t->flags19 & DIBPALETTE ? 1 : 0;
 	dlg->m_PosX = t->posx;
@@ -5887,22 +5899,29 @@ LPCWSTR Ascii2Wide(LPCSTR lpstr)
 	return lpstrW;
 }
 
+typedef LONG (WINAPI *RegSetKeyValueW_Type)(HKEY, LPCWSTR, LPCWSTR, DWORD, LPCVOID, DWORD);
+
 void SetWineShims(char *path, TARGETMAP *t)
 {
 	// for 8 bit colors the key data would be L"~ 256COLOR"
 	// for 16 bit colors the key data would be L"~ 16BITCOLOR"
 	if(t->flags2 & (INIT8BPP | INIT16BPP)) {
+		HMODULE advlib = LoadLibraryA("advapi32.dll");
+		if(!advlib) return;
+		RegSetKeyValueW_Type pRegSetKeyValueW = (RegSetKeyValueW_Type)GetProcAddress(advlib, "RegSetKeyValueW");
+		if(!pRegSetKeyValueW) return;
 		OutTrace("Setting 256COLOR key in registry for %s\n", path);
 		HKEY hKey;
 		LSTATUS stat = RegOpenKeyA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers", &hKey);
 		if(stat != ERROR_SUCCESS) OutTrace("RegOpenKeyA ERROR ret=%d\n", stat);
 		OutTrace("hkey=%#x\n", hKey);
 		WCHAR *wData = (t->flags2 & INIT8BPP) ? L"~ 256COLOR" : L"~ 16BITCOLOR";
-		stat = RegSetKeyValueW(hKey, NULL, Ascii2Wide(path), REG_SZ, wData, 20);
-		if(stat != ERROR_SUCCESS) OutTrace("RegSetKeyValueA ERROR ret=%d\n", stat);
+		stat = (*pRegSetKeyValueW)(hKey, NULL, Ascii2Wide(path), REG_SZ, wData, 20);
+		if(stat != ERROR_SUCCESS) OutTrace("RegSetKeyValueW ERROR ret=%d\n", stat);
 		stat = RegFlushKey(hKey);
 		if(stat != ERROR_SUCCESS) OutTrace("RegFlushKey ERROR ret=%d\n", stat);
 		RegCloseKey(hKey);
+		FreeLibrary(advlib);
 	}
 }
 
@@ -5993,7 +6012,7 @@ void RunTarget(int runmode, int i, TARGETMAP *tm, PRIVATEMAP *pm, TARGETMAP *Tar
 		if(tm->flags11 & REMAPSYSFOLDERS)
 			sprintf(dxwWindowsPath, "%s\\Windows", folderpath);
 		else
-			strcpy(dxwWindowsPath, "");
+			strcpy(dxwWindowsPath, ".\\Windows");
 		WritePrivateProfileString("otvdm", "WINDIR", dxwWindowsPath, otvdmIniPath);
 	}
 	else {

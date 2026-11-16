@@ -192,6 +192,7 @@ void CTargetDlg::InitializeDefaults()
 	m_D3D8Back16 = FALSE;
 	m_NoRampDevice = FALSE;
 	m_FogVertexCap = FALSE;
+	m_SpoofAdapterId = FALSE;
 	m_FogTableCap = FALSE;
 	m_NoRGBDevice = FALSE;
 	m_NoMMXDevice = FALSE;
@@ -741,6 +742,7 @@ void CTargetDlg::InitializeDefaults()
 	m_ResetMultiVolume = FALSE;
 	m_RemapRootFolder = FALSE;
 	m_HandleCDLock = FALSE;
+	m_UseDOSDevices = FALSE;
 	m_EscapedIniFiles = FALSE;
 	m_SetCDAudioPath = FALSE;
 	m_CDHack = FALSE;
@@ -757,6 +759,10 @@ void CTargetDlg::InitializeDefaults()
 	m_NoPaletteAnimation = FALSE;
 	m_ForceNoPageLock = FALSE;
 	m_SetZoomed = FALSE;
+	m_BypassD3D9Query = FALSE;
+	m_NoSendChanging = FALSE;
+	m_ForceDefSysPalette = FALSE;
+	m_PreferDxWndCodec = FALSE;
 	m_SetResolution = FALSE;
 	m_DIBPalette = FALSE;
 	m_ClipperMode = 0;

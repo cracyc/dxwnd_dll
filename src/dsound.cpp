@@ -694,6 +694,7 @@ HRESULT WINAPI extDSCreateSoundBuffer(void *lpds, LPCDSBUFFERDESC pcDSBufferDesc
 		}
 	}
 #endif // DXW_NOTRACES
+
 	if(dxw.dwFlags19 & FIXDSOUNDBUFFER){
 		if((dwSize >= sizeof(DSBUFFERDESC1)) && pcDSBufferDesc->lpwfxFormat) {
 			WAVEFORMATEX *p = pcDSBufferDesc->lpwfxFormat;
@@ -725,6 +726,14 @@ HRESULT WINAPI extDSCreateSoundBuffer(void *lpds, LPCDSBUFFERDESC pcDSBufferDesc
 				}
 				break;
 		}
+	}
+
+	if((dxw.dwDFlags2 & EXPERIMENTAL2) && (pcDSBufferDesc->dwFlags & DSBCAPS_GETCURRENTPOSITION2)){
+		OutTraceSND("%s: strip DSBCAPS_GETCURRENTPOSITION2\n", ApiRef);
+		DSBUFFERDESC dsbd;
+		memcpy(&dsbd, pcDSBufferDesc, sizeof(DSBUFFERDESC));
+		dsbd.dwFlags &= ~DSBCAPS_GETCURRENTPOSITION2;
+		pcDSBufferDesc = &dsbd;
 	}
 
 	res = (*pDSCreateSoundBuffer)(lpds, pcDSBufferDesc, ppDSBuffer, pUnkOuter);

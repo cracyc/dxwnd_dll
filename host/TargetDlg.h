@@ -615,6 +615,7 @@ public:
 	BOOL	m_NoRGBDevice;
 	BOOL	m_NoRampDevice;
 	BOOL	m_FogVertexCap;
+	BOOL	m_SpoofAdapterId;
 	BOOL	m_FogTableCap;
 	BOOL	m_MinimalCaps;
 	BOOL	m_SetZBufferBitDepths;
@@ -666,6 +667,7 @@ public:
 	BOOL	m_ResetMultiVolume;
 	BOOL	m_RemapRootFolder;
 	BOOL	m_HandleCDLock;
+	BOOL	m_UseDOSDevices;
 	BOOL	m_EscapedIniFiles;
 	BOOL	m_SetCDAudioPath;
 	BOOL	m_CDHack;
@@ -682,6 +684,10 @@ public:
 	BOOL	m_NoPaletteAnimation;
 	BOOL	m_ForceNoPageLock;
 	BOOL	m_SetZoomed;
+	BOOL	m_BypassD3D9Query;
+	BOOL	m_NoSendChanging;
+	BOOL	m_ForceDefSysPalette;
+	BOOL	m_PreferDxWndCodec;
 	BOOL	m_SetResolution;
 	BOOL	m_DIBPalette;
 	int		m_ZBufferMode;
