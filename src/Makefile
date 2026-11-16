@@ -97,6 +97,7 @@ OBJS = \
     $(OUTDIR)\dxpatcher.obj \
     $(OUTDIR)\dxwchildwstack.obj \
     $(OUTDIR)\dxwcore.obj \
+    $(OUTDIR)\dxwcore.windir.obj \
     $(OUTDIR)\dxwnd.obj \
     $(OUTDIR)\dxwsstack.obj \
     $(OUTDIR)\dxwwstack.obj \
@@ -192,6 +193,7 @@ OBJS = \
     $(OUTDIR)\wlocale.obj \
     $(OUTDIR)\xinput.obj \
     $(OUTDIR)\drawdib.obj \
+    $(OUTDIR)\D3DQuery9.obj \
     $(OUTDIR)\dxwnd.res
 
 all: $(OUTDIR) $(TARGET)
