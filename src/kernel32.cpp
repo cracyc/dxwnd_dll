@@ -1,4 +1,5 @@
 #define  _CRT_SECURE_NO_WARNINGS
+#define _CRT_NON_CONFORMING_SWPRINTFS
 
 #define HANDLEFAKERAWDEVICE
 #define DXWESCAPEDINIENTRIES
@@ -777,8 +778,8 @@ void HookKernelModule(HMODULE module, char *libname)
 #ifndef DXW_NOTRACES
 	if( (dxw.dwFlags3 & BUFFEREDIOFIX) || 
 		(dxw.dwFlags20 & HANDLECDLOCK) ||
-		(dxw.dwTFlags2 & OUTFILEIO))
-		HookLibraryEx(module, FixIOHooks, libname);
+		(dxw.dwTFlags2 & OUTFILEIO) ||
+		dxw.isWineControlled) HookLibraryEx(module, FixIOHooks, libname);
 	if( (dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || 
 		(dxw.dwFlags11 & CUSTOMLOCALE) ||
 		(dxw.dwFlags20 & FINDCLOSECHECK) ||
@@ -786,7 +787,8 @@ void HookKernelModule(HMODULE module, char *libname)
 	if(dxw.dwTFlags2 & OUTFILEIO) HookLibraryEx(module, TraceIOHooks, libname);
 #else
 	if( (dxw.dwFlags3 & BUFFEREDIOFIX) || 
-		(dxw.dwFlags20 & HANDLECDLOCK)) HookLibraryEx(module, FixIOHooks, libname);
+		(dxw.dwFlags20 & HANDLECDLOCK) ||
+		dxw.isWineControlled) HookLibraryEx(module, FixIOHooks, libname);
 	if( (dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || 
 		(dxw.dwFlags20 & FINDCLOSECHECK) ||
 		(dxw.dwFlags11 & CUSTOMLOCALE)) HookLibraryEx(module, RemapIOHooks, libname);
@@ -859,7 +861,7 @@ FARPROC Remap_kernel32_ProcAddress(LPCSTR proc, HMODULE hModule)
 	if (addr=RemapLibraryEx(proc, hModule, Hooks)) return addr;
 
 #ifndef DXW_NOTRACES
-	if((dxw.dwFlags3 & BUFFEREDIOFIX) || (dxw.dwFlags20 & HANDLECDLOCK) || (dxw.dwTFlags2 & OUTFILEIO))
+	if((dxw.dwFlags3 & BUFFEREDIOFIX) || (dxw.dwFlags20 & HANDLECDLOCK) || (dxw.dwTFlags2 & OUTFILEIO) || dxw.isWineControlled)
 		if (addr=RemapLibraryEx(proc, hModule, FixIOHooks)) return addr;
 
 	if( (dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || 
@@ -871,7 +873,7 @@ FARPROC Remap_kernel32_ProcAddress(LPCSTR proc, HMODULE hModule)
 	if (dxw.dwTFlags2 & OUTFILEIO)
 		if (addr=RemapLibraryEx(proc, hModule, TraceIOHooks)) return addr;
 #else
-	if(dxw.dwFlags3 & BUFFEREDIOFIX)
+	if((dxw.dwFlags3 & BUFFEREDIOFIX) || (dxw.dwFlags20 & HANDLECDLOCK) || dxw.isWineControlled)
 		if (addr=RemapLibraryEx(proc, hModule, FixIOHooks)) return addr;
 
 	if((dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) || 
@@ -1297,7 +1299,24 @@ BOOL WINAPI extGetDiskFreeSpaceA(LPCSTR lpRootPathName, LPDWORD lpSectorsPerClus
 	ApiName("GetDiskFreeSpaceA");
 	BOOL ret;
 	OutTraceSYS("%s: RootPathName=\"%s\"\n", ApiRef, lpRootPathName);
-	ret=(*pGetDiskFreeSpaceA)(lpRootPathName, lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters);
+
+	if(dxw.dwFlags20 & USEDOSDEVICES){
+		// v2.006.16: handling of fake Windows folder on a DOS device path
+		if ((dxw.dwFlags11 & REMAPSYSFOLDERS) && (dxw.gFakeWinDriveLetter == lpRootPathName[0])){
+			char WinDir[MAX_PATH];
+			(*pGetWindowsDirectoryA)(WinDir, MAX_PATH);
+			OutTraceSYS("%s: REMAPSYSFOLDERS - remap HD %c:->%c:\n", ApiRef, lpRootPathName[0], WinDir[0]); 
+			strcpy(&WinDir[1], &lpRootPathName[1]);
+			ret=(*pGetDiskFreeSpaceA)(WinDir, lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters);
+		}
+		else {
+			ret=(*pGetDiskFreeSpaceA)(lpRootPathName, lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters);
+		}
+	}
+	else {
+		ret=(*pGetDiskFreeSpaceA)(lpRootPathName, lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters);
+	}
+
 	if(ret) {
 		OutTraceSYS("%s: SectXCluster=%d BytesXSect=%d FreeClusters=%d TotalClusters=%d\n", ApiRef,
 			*lpSectorsPerCluster, *lpBytesPerSector, *lpNumberOfFreeClusters, *lpTotalNumberOfClusters);
@@ -1337,6 +1356,24 @@ BOOL WINAPI extGetDiskFreeSpaceW(LPCWSTR lpRootPathName, LPDWORD lpSectorsPerClu
 	ApiName("GetDiskFreeSpaceW");
 	BOOL ret;
 	OutTraceSYS("%s: RootPathName=\"%ls\"\n", ApiRef, lpRootPathName);
+
+	if(dxw.dwFlags20 & USEDOSDEVICES){
+		// v2.006.16: handling of fake Windows folder on a DOS device path
+		if ((dxw.dwFlags11 & REMAPSYSFOLDERS) && (dxw.gFakeWinDriveLetter == (char)lpRootPathName[0])){
+			WCHAR WinDir[MAX_PATH];
+			(*pGetWindowsDirectoryW)(WinDir, MAX_PATH);
+			OutTraceSYS("%s: REMAPSYSFOLDERS - remap HD %lc:->%lc:\n", ApiRef, lpRootPathName[0], WinDir[0]); 
+			wcscpy(&WinDir[1], &lpRootPathName[1]);
+			ret=(*pGetDiskFreeSpaceW)(WinDir, lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters);
+		}
+		else {
+			ret=(*pGetDiskFreeSpaceW)(lpRootPathName, lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters);
+		}
+	}
+	else {
+		ret=(*pGetDiskFreeSpaceW)(lpRootPathName, lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters);
+	}
+
 	ret=(*pGetDiskFreeSpaceW)(lpRootPathName, lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters);
 	if(ret) {
 		OutTraceSYS("%s: SectXCluster=%d BytesXSect=%d FreeClusters=%d TotalClusters=%d\n", ApiRef,
@@ -2298,7 +2335,7 @@ FARPROC WINAPI extGetProcAddress(HMODULE hModule, LPCSTR proc)
 		if(SysLibsTable[idx].hmodule == hModule) break;
 	}
 
-	OutTraceDW("%s: hModule=%#x idx=%d(%s) proc=%s\n", ApiRef, hModule, idx, SysLibsTable[idx].name, ProcToString(proc));
+	OutDebugDW("%s: hModule=%#x idx=%d(%s) proc=%s\n", ApiRef, hModule, idx, SysLibsTable[idx].name, ProcToString(proc));
 
 	if((!SysLibsTable[idx].name) || (SysLibsTable[idx].flags == DXWHOOK_NULL)){
 		ret=(*pGetProcAddress)(hModule, proc);
@@ -2386,7 +2423,7 @@ FARPROC WINAPI extGetProcAddress(HMODULE hModule, LPCSTR proc)
 	}
 
 	ret=(*pGetProcAddress)(hModule, proc);
-	OutTraceDW("%s: ret=%#x\n", ApiRef, ret);
+	OutDebugDW("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }
 
@@ -2412,7 +2449,7 @@ UINT WINAPI extGetDriveTypeA(LPCSTR lpRootPathName)
 
 	if(dxw.bHintActive) ShowHint(HINT_CDCHECK);
 
-	OutTraceSYS("%s: path=\"%s\"\n", ApiRef, lpRootPathName);
+	OutTraceSYS("%s: path=\"%s\"\n", ApiRef, lpRootPathName ? lpRootPathName : "(NULL)");
 	// v2.05.44 fix: it is possible to call GetDriveTypeA with NULL argument. Found in "Leadfoot Stadium Off-Road Racing"
 	// v2.05.60 fix: returns DRIVE_FIXED for fake HD drives
 	// v2.05.66 fix: getting to extGetDriveTypeA with pGetDriveTypeA==NULL. Added initialization in hook table
@@ -2436,6 +2473,13 @@ UINT WINAPI extGetDriveTypeA(LPCSTR lpRootPathName)
 			if(!Vol) {
 				OutTraceSYS("%s: HIDECDROMEMPTY - hide CDROM %c:\n", ApiRef, lpRootPathName[0]); 
 				return DRIVE_NO_ROOT_DIR; // v2.06.14: Crazyc fix
+			}
+		}
+		if(dxw.dwFlags20 & USEDOSDEVICES){
+			// v2.006.16: handling of fake Windows folder on a DOS device path
+			if ((dxw.dwFlags11 & REMAPSYSFOLDERS) && (dxw.gFakeWinDriveLetter == lpRootPathName[0])){
+				OutTraceSYS("%s: REMAPSYSFOLDERS - hide HD %c:\n", ApiRef, lpRootPathName[0]); 
+				return DRIVE_NO_ROOT_DIR;
 			}
 		}
 
@@ -2467,7 +2511,7 @@ UINT WINAPI extGetDriveTypeA(LPCSTR lpRootPathName)
 UINT WINAPI extGetDriveTypeW(LPCWSTR lpRootPathName)
 {
 	UINT ret;
-	ApiName("GetDriveTypeA");
+	ApiName("GetDriveTypeW");
 	char *labels[]={
 		"DRIVE_UNKNOWN",
 		"DRIVE_NO_ROOT_DIR",
@@ -2480,7 +2524,7 @@ UINT WINAPI extGetDriveTypeW(LPCWSTR lpRootPathName)
 
 	if(dxw.bHintActive) ShowHint(HINT_CDCHECK);
 
-	OutTraceSYS("%s: path=\"%ls\"\n", ApiRef, lpRootPathName);
+	OutTraceSYS("%s: path=\"%ls\"\n", ApiRef, lpRootPathName ? lpRootPathName : L"(NULL)");
 	// v2.05.44 fix: it is possible to call GetDriveTypeW with NULL argument.
 	// v2.05.60 fix: returns DRIVE_FIXED for fake HD drives
 	if(lpRootPathName){
@@ -2503,6 +2547,14 @@ UINT WINAPI extGetDriveTypeW(LPCWSTR lpRootPathName)
 			if(!Vol) {
 				OutTraceSYS("%s: HIDECDROMEMPTY - hide CDROM %c:\n", ApiRef, (char)lpRootPathName[0]); 
 				return DRIVE_NO_ROOT_DIR; // v2.06.14: Crazyc fix
+			}
+		}
+
+		if(dxw.dwFlags20 & USEDOSDEVICES){
+			// v2.006.16: handling of fake Windows folder on a DOS device path
+			if ((dxw.dwFlags11 & REMAPSYSFOLDERS) && (dxw.gFakeWinDriveLetter == (char)lpRootPathName[0])){
+				OutTraceSYS("%s: REMAPSYSFOLDERS - hide HD %lc:\n", ApiRef, lpRootPathName[0]); 
+				return DRIVE_NO_ROOT_DIR;
 			}
 		}
 
@@ -2549,6 +2601,15 @@ DWORD WINAPI extGetLogicalDrives(void)
 	if(dxw.bHintActive) ShowHint(HINT_CDCHECK);
 
 	DevMask = (*pGetLogicalDrives)();
+
+	if(dxw.dwFlags20 & USEDOSDEVICES){
+		// v2.006.16: handling of fake Windows folder on a DOS device path
+		if ((dxw.dwFlags11 & REMAPSYSFOLDERS) && dxw.gFakeWinDriveLetter){
+			DWORD DevBit = 0x1 << (dxw.gFakeWinDriveLetter - 'A');;
+			DevMask &= ~DevBit;
+		}
+	}
+
 	if (dxw.dwFlags4 & HIDECDROMEMPTY){ 
 		for(int i=0; i<32; i++){
 			DWORD DevBit;
@@ -2563,6 +2624,7 @@ DWORD WINAPI extGetLogicalDrives(void)
 			}
 		}
 	}
+
 	if (dxw.dwFlags17 & HIDECDROMREAL){ // v2.06.14 added real CD exclusion
 		for(int i=0; i<32; i++){
 			DWORD DevBit;
@@ -2577,12 +2639,14 @@ DWORD WINAPI extGetLogicalDrives(void)
 			}
 		}
 	}
+
 	// v2.04.84: handling of fake HD drive when FAKEHDDRIVE
 	if (dxw.dwFlags10 & FAKEHDDRIVE){
 		int BitShift = dxw.FakeHDDrive - 'A';
 		DevMask |= 0x1 << BitShift;
 		OutTraceSYS("GetLogicalDrives: added virtual HD %c:\\\n", dxw.FakeHDDrive);
 	}
+
 	// v2.04.84: handling of fake CDROM drive when FAKECDDRIVE
 	if (dxw.dwFlags10 & FAKECDDRIVE){
 		int BitShift = dxw.FakeCDDrive - 'A';
@@ -2683,13 +2747,14 @@ HANDLE WINAPI extCreateFileA(LPCTSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 		dwFlagsAndAttributes &= ~FILE_FLAG_NO_BUFFERING;
 	}
 
+	bRawDevice = !strncmp(lpFileName, "\\\\.\\", 4);
+
 	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
 		DWORD mapping;
 		lpFileName = dxwTranslatePathA(lpFileName, &mapping);
 
 		// if mapped on virtual CD and write access required, you should fake a no access error code
 		if(mapping == DXW_FAKE_CD){
-			bRawDevice = !strncmp(lpFileName, "\\\\.\\", 4);
 			if(dxw.dwFlags14 & WIN16CREATEFILE){
 				if(dwDesiredAccess == (GENERIC_WRITE|GENERIC_READ)){
 					OutTraceDW("%s: WIN16CREATEFILE use READ mode\n", ApiRef);
@@ -2743,11 +2808,12 @@ HANDLE WINAPI extCreateFileA(LPCTSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 	}
 
 #ifdef HANDLEFAKERAWDEVICE
-	if(bRawDevice) {
+	if(bRawDevice && (ret != INVALID_HANDLE_VALUE)) {
 		OutTraceDW("%s: registered raw device hfile=%#x\n", ApiRef, ret);
 		hFakeCDRawDevice = ret;
 	}
 #endif
+	OutTraceSYS("%s: ret(handle)=%#x\n", ApiRef, ret);
 	return ret;
 } 
 
@@ -2756,6 +2822,7 @@ HANDLE WINAPI extCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 							DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
 	HANDLE ret;
+	BOOL bRawDevice = FALSE;
 	ApiName("CreateFileW");
 
 	int err=0;
@@ -2775,6 +2842,8 @@ HANDLE WINAPI extCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 		OutTraceDW("%s: suppress FILE_FLAG_NO_BUFFERING on Filename=\"%ls\"\n", ApiRef, lpFileName); 
 		dwFlagsAndAttributes &= ~FILE_FLAG_NO_BUFFERING;
 	}
+
+	bRawDevice = !wcsncmp(lpFileName, L"\\\\.\\", 4);
 
 	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
 		DWORD mapping;
@@ -2822,6 +2891,13 @@ HANDLE WINAPI extCreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dw
 		}
 	}
 
+#ifdef HANDLEFAKERAWDEVICE
+	if(bRawDevice && (ret != INVALID_HANDLE_VALUE)) {
+		OutTraceDW("%s: registered raw device hfile=%#x\n", ApiRef, ret);
+		hFakeCDRawDevice = ret;
+	}
+#endif
+	OutTraceSYS("%s: ret(handle)=%#x\n", ApiRef, ret);
 	return ret;
 } 
 
@@ -4196,7 +4272,7 @@ HANDLE WINAPI extCreateFileMappingA(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMa
 	DWORD mapping = DXW_NO_FAKE;
 
 	OutTraceSYS("%s: hfile=%#x protect=%#x MaxHigh\\Low=%d\\%d lpName=\"%s\"\n", 
-		ApiRef, hFile, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName);
+		ApiRef, hFile, flProtect, dwMaximumSizeHigh, dwMaximumSizeLow, lpName ? lpName : "(NULL)");
 
 	// v2.06.11: for some reason, pCreateFileMappingA could be NULL ... @#@ "Gangsters: Organized Crime"
 	if(!pCreateFileMappingA) {
@@ -4272,13 +4348,14 @@ HANDLE WINAPI extCreateFileMappingW(HANDLE hFile, LPSECURITY_ATTRIBUTES lpFileMa
 	ApiName("CreateFileMappingW");
 	DWORD mapping = DXW_NO_FAKE;
 
-	OutTraceSYS("%s: hfile=%#x protect=%#x lpName=\"%ls\"\n", ApiRef, hFile, flProtect, lpName);
+	OutTraceSYS("%s: hfile=%#x protect=%#x lpName=\"%ls\"\n", ApiRef, hFile, flProtect, lpName ? lpName : L"(NULL)");
 
 	// v2.05.19: lpName could be NULL, so bypass dxwTranslatePathA in this case
 	if(lpName && (dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)))
 		lpName = dxwTranslatePathW(lpName, &mapping);
 
 	if(mapping == DXW_FAKE_CD) {
+		OutTrace("%s: TO DO @%d\n", ApiRef, __LINE__);
 		// to do ....
 	}
 
@@ -4391,6 +4468,11 @@ BOOL WINAPI extCloseHandle(HANDLE hObject)
 	OutDebugDW("%s: hObject=%#x\n", ApiRef, hObject);
 
 	if ((hObject == 0) || (hObject == (HANDLE)-1)){
+		OutTraceDW("%s: BYPASS hObject=%#x\n", ApiRef, hObject);
+		return TRUE;
+	}
+
+	if(dxw.isWineControlled && (hObject == (HANDLE)0xDEADBEEF)){
 		OutTraceDW("%s: BYPASS hObject=%#x\n", ApiRef, hObject);
 		return TRUE;
 	}
@@ -4775,8 +4857,13 @@ DWORD WINAPI extGetCurrentDirectoryA(DWORD nBufferLength, LPSTR lpBuffer)
 		res = (*pGetCurrentDirectoryA)(res, fullBuffer);
 		OutTraceSYS("%s: actual ret=%d buf=\"%s\"\n", ApiRef, res, fullBuffer);
 		lpPathName = (char *)dxwUntranslatePathA((LPCSTR)fullBuffer, &mapping);
-		strncpy(lpBuffer, lpPathName, nBufferLength);
-		res = strlen(lpBuffer);
+		if(lpBuffer){
+			strncpy(lpBuffer, lpPathName, nBufferLength);
+			res = strlen(lpBuffer);
+		}
+		else {
+			res = strlen(fullBuffer);
+		}
 		free(fullBuffer);
 	}
 	else {
@@ -4806,8 +4893,13 @@ DWORD WINAPI extGetCurrentDirectoryW(DWORD nBufferLength, LPWSTR lpBuffer)
 		res = (*pGetCurrentDirectoryW)(res, fullBuffer);
 		OutTraceSYS("%s: actual ret=%d buf=\"%ls\"\n", ApiRef, res, fullBuffer);
 		lpPathName = (LPWSTR)dxwUntranslatePathW((LPWSTR)fullBuffer, &mapping);
-		wcsncpy(lpBuffer, lpPathName, nBufferLength);
-		res = wcslen(lpBuffer);
+		if(lpBuffer){
+			wcsncpy(lpBuffer, lpPathName, nBufferLength);
+			res = wcslen(lpBuffer);
+		}
+		else {
+			res = wcslen(fullBuffer);
+		}
 		free(fullBuffer);
 	}
 	else {
@@ -5262,61 +5354,12 @@ HGLOBAL WINAPI extGlobalFree(HGLOBAL hMem)
 	return res;
 }
 
-// -------------------- REMAPSYSFOLDERS hooks --------------------
-#define RELATIVESYSPATH
-char *GetFakeWinDirA()
-{
-#ifdef RELATIVESYSPATH
-	return ".\\Windows";
-#endif
-	static char myPathA[MAX_PATH];
-	if(dxw.isWineControlled){
-		char keyName[8];
-		char sInitPath[MAX_PATH+1];
-		sprintf(sInitPath, "%sdxwnd.ini", GetDxWndPath()); 
-		sprintf(keyName, "path%d", dxw.dwIndex);
-		(*pGetPrivateProfileStringA)("target", keyName, "", myPathA, MAX_PATH, sInitPath);
-	}
-	else {
-		(*pGetModuleFileNameA)(NULL, myPathA, MAX_PATH);
-	}
-	//PathRemoveFileSpecA(myPathA);
-	char *p = myPathA + strlen(myPathA);
-	while((*p != '\\') && (p > myPathA)) p--;
-	if(*p == '\\') *p=0;
-
-	strcat_s(myPathA, MAX_PATH, "\\Windows");
-	return myPathA;
-}
-
-WCHAR *GetFakeWinDirW()
-{
-	static WCHAR myPathW[MAX_PATH];
-	if(dxw.isWineControlled){
-		WCHAR keyName[8];
-		WCHAR sInitPath[MAX_PATH+1];
-		swprintf(sInitPath, MAX_PATH, L"%sdxwnd.ini", GetDxWndPath()); 
-		swprintf(keyName, MAX_PATH, L"path%d", dxw.dwIndex);
-		(*pGetPrivateProfileStringW)(L"target", keyName, L"", myPathW, MAX_PATH, sInitPath);
-	}
-	else {
-		(*pGetModuleFileNameW)(NULL, myPathW, MAX_PATH);
-	}
-	//PathRemoveFileSpecW(myPathW);
-	WCHAR *p = myPathW + wcslen(myPathW);
-	while((*p != L'\\') && (p > myPathW)) p--;
-	if(*p == L'\\') *p=0;
-
-	wcscat_s(myPathW, MAX_PATH, L"\\Windows");
-	return myPathW;
-}
-
 BOOL isRelativePathA(LPCSTR path)
 {
 	// v2.05.19: NULL path is to be considered as relative 
 	if(path == NULL) return TRUE;
 
-	char *lpFolder = GetFakeWinDirA();
+	char *lpFolder = dxw.GetFakeWinDirA();
 	if(!strncmp(path, lpFolder, strlen(lpFolder))){
 		return FALSE;
 	}
@@ -5333,7 +5376,7 @@ BOOL isRelativePathW(LPCWSTR path)
 	// v2.05.29: NULL path is to be considered as relative 
 	if(path == NULL) return TRUE;
 
-	WCHAR *lpFolder = GetFakeWinDirW();
+	WCHAR *lpFolder = dxw.GetFakeWinDirW();
 	if(!wcsncmp(path, lpFolder, wcslen(lpFolder))){
 		return FALSE;
 	}
@@ -5349,10 +5392,15 @@ UINT WINAPI extGetWindowsDirectoryA(LPSTR lpBuffer, UINT uSize)
 {
 	UINT ret;
 	ApiName("GetWindowsDirectoryA");
-	char *sFakePath = GetFakeWinDirA();
-	ret = strlen(sFakePath);
-	strncpy(lpBuffer, sFakePath, uSize);
-	OutTraceDW("%s: returning len(ret)=%d relative path=\"%s\"\n", ApiRef, ret, lpBuffer);
+	if(dxw.dwFlags11 & REMAPSYSFOLDERS){
+		char *sFakePath = dxw.GetFakeWinDirA();
+		ret = strlen(sFakePath);
+		strncpy(lpBuffer, sFakePath, uSize);
+	}
+	else {
+		ret = (*pGetWindowsDirectoryA)(lpBuffer, uSize);
+	}
+	OutTraceDW("%s: returning len(ret)=%d path=\"%s\"\n", ApiRef, ret, lpBuffer);
 	return ret;
 }
 
@@ -5360,10 +5408,15 @@ UINT WINAPI extGetWindowsDirectoryW(LPWSTR lpBuffer, UINT uSize)
 {
 	UINT ret;
 	ApiName("GetWindowsDirectoryW");
-	WCHAR *sFakePath = GetFakeWinDirW();
-	ret = wcslen(sFakePath);
-	wcsncpy(lpBuffer, sFakePath, uSize);
-	OutTraceDW("%s: returning relative path\n", ApiRef);
+	if(dxw.dwFlags11 & REMAPSYSFOLDERS){
+		WCHAR *sFakePath = dxw.GetFakeWinDirW();
+		ret = wcslen(sFakePath);
+		wcsncpy(lpBuffer, sFakePath, uSize);
+	}
+	else {
+		ret = (*pGetWindowsDirectoryW)(lpBuffer, uSize);
+	}
+	OutTraceDW("%s: returning len(ret)=%d path=\"%ls\"\n", ApiRef, ret, lpBuffer);
 	return ret;
 }
 
@@ -6043,7 +6096,13 @@ BOOL WINAPI extDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpI
 	//if((dxw.dwFlags13 & SECUROMDETECT) && (dwIoControlCode == IOCTL_SCSI_PASS_THROUGH_DIRECT)){
 	//	MessageBox(0, "IOCTL_SCSI_PASS_THROUGH_DIRECT", "DxWnd", 0);
 	//}
-
+	if(dxw.isWineControlled && (dxw.dwFlags10 & FAKECDDRIVE) &&
+		((dwIoControlCode == IOCTL_CDROM_READ_TOC) || (dwIoControlCode == IOCTL_CDROM_READ_Q_CHANNEL))
+		){
+		OutTraceDW("%s: bypassing WineVDM CD checks\n", ApiRef);
+		SetLastError(0);
+		return TRUE;
+	}
 
 	if(dxw.dwFlags12 & LOCKCDTRAY){
 		switch (dwIoControlCode){
@@ -6062,6 +6121,11 @@ BOOL WINAPI extDeviceIoControl(HANDLE hDevice, DWORD dwIoControlCode, LPVOID lpI
 			default:
 				break;
 		}
+	}
+
+	if(hDevice == INVALID_HANDLE_VALUE) {
+		OutTraceSYS("%s: bypass INVALID_HANDLE_VALUE\n", ApiRef);
+		return TRUE;
 	}
 
 	ret=(*pDeviceIoControl)(hDevice, dwIoControlCode, lpInBuffer, nInBufferSize, lpOutBuffer, nOutBufferSize, lpBytesReturned, lpOverlapped);
@@ -6815,7 +6879,7 @@ DWORD WINAPI extSearchPathA(LPCSTR lpPath, LPCSTR lpFileName, LPCSTR lpExtension
 	DWORD res;
 	char *sPath = NULL;
 	OutTraceSYS("%s: fname=\"%s\" path=\"%s\" ext=\"%s\" buflen=%d\n", 
-		ApiRef, lpFileName, lpPath, lpExtension, nBufferLength);
+		ApiRef, lpFileName, lpPath, lpExtension ? lpExtension : "(NULL)", nBufferLength);
 
 	// v2.06.03 fix: lpPath can be NULL
 	// v2.06.16 fix: save translated lpPath value when also lpFileName is translated
@@ -6859,7 +6923,7 @@ DWORD WINAPI extSearchPathW(LPCWSTR lpPath, LPCWSTR lpFileName, LPCWSTR lpExtens
 	DWORD res;
 	WCHAR *sPath = NULL;
 	OutTraceSYS("%s: fname=\"%ls\" path=\"%ls\" ext=\"%ls\" buflen=%d\n", 
-		ApiRef, lpFileName, lpPath, lpExtension, nBufferLength);
+		ApiRef, lpFileName, lpPath, lpExtension ? lpExtension : L"(NULL)", nBufferLength);
 
 	// v2.06.03 fix: lpPath can be NULL
 	// v2.06.16 fix: save translated lpPath value when also lpFileName is translated

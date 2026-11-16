@@ -31,8 +31,6 @@ extern BOOL GetTargetDirA(char *, int);
 extern BOOL GetTargetDirW(WCHAR *, int);
 extern BOOL isRelativePathA(LPCSTR);
 extern BOOL isRelativePathW(LPCWSTR);
-extern char *GetFakeWinDirA();
-extern WCHAR *GetFakeWinDirW();
 
 static BOOL unescapeA(char *s, LPCSTR lpFileName, UINT size)
 {
@@ -155,7 +153,7 @@ static BOOL unescapeW(WCHAR *s, LPCWSTR lpFileName, UINT size)
 
 static char *RemapIniPathA(LPCSTR lpFileName, char *lpNewPath)
 {
-	strcpy(lpNewPath, GetFakeWinDirA());
+	strcpy(lpNewPath, dxw.GetFakeWinDirA());
 	strcat(lpNewPath, "\\");
 	if(!lpFileName) strcat(lpNewPath, "Win.ini");
 	else {
@@ -173,7 +171,7 @@ static char *RemapIniPathA(LPCSTR lpFileName, char *lpNewPath)
 
 static WCHAR *RemapIniPathW(LPCWSTR lpFileName, WCHAR *lpNewPath)
 {
-	wcscpy(lpNewPath, GetFakeWinDirW());
+	wcscpy(lpNewPath, dxw.GetFakeWinDirW());
 	wcscat(lpNewPath, L"\\");
 	if(!lpFileName) wcscat(lpNewPath, L"Win.ini");
 	else {

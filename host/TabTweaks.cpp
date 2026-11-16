@@ -215,6 +215,10 @@ BOOL CTabTweaks::OnInitDialog()
 		{ "NOPALETTEANIMATION",	"patch:NoPaletteAnimation", 0, offset(m_NoPaletteAnimation) },
 		{ "FORCENOPAGELOCK",	"ddraw:ForceNoPageLock", 0, offset(m_ForceNoPageLock) },
 		{ "SETZOOMED",			"win:SetZoomed", 0, offset(m_SetZoomed) },
+		{ "BYPASSD3D9QUERY",	"d3d:BypassD3D9Query", 0, offset(m_BypassD3D9Query) },
+		{ "NOSENDCHANGING",		"win:NoSendChanging", 0, offset(m_NoSendChanging) },
+		{ "FORCEDEFSYSPALETTE",	"shim:ForceDefSysPalette", 0, offset(m_ForceDefSysPalette) },
+		{ "PREFERDXWNDCODEC",	"patch:PreferDxWndCodec", 0, offset(m_PreferDxWndCodec) },
 		{ NULL, NULL, NULL, NULL }  
 	};
 	// build the tweaks category list

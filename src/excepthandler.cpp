@@ -504,7 +504,9 @@ LONG WINAPI DxWExceptionHandler(LPEXCEPTION_POINTERS ExceptionInfo)
 			 }
 			// else fall through
 #ifndef DXWNDEMULATE3DNOW
-		case 0xc000001d: // 3DNow! instructions: FEMMS (eXpendable), FPADD etc. (Arthur's Knights I & II, the New Adventures of the Time Machine)
+		case 0xc000001d: 
+			// generic privileged instruction exception
+			// 3DNow! instructions: FEMMS (eXpendable), FPADD etc. (Arthur's Knights I & II, the New Adventures of the Time Machine)
 #endif
 			//case 0xc0000005: // Memory exception (Tie Fighter) -- moved to SKIP processing
 			if(!VirtualProtect(target, 10, PAGE_READWRITE, &oldprot)) {
@@ -516,7 +518,7 @@ LONG WINAPI DxWExceptionHandler(LPEXCEPTION_POINTERS ExceptionInfo)
 #else
 			cmdlen=(*pDisasm)((BYTE *)target, 10, 0, &da, 0, NULL, NULL);
 #endif			
-			return ForceNOPs(ApiRef, "3DNow!", target, cmdlen);
+			return ForceNOPs(ApiRef, "PrivilegedInstr.", target, cmdlen);
 			break;
 #ifdef DXWNDEMULATE3DNOW
 		case 0xc000001d: // 3DNOW instructions

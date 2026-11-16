@@ -48,7 +48,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #else
 #define TRACESUFFIX 
 #endif
-#define VERSION "v2.06.16.rc11" DEBUGSUFFIX STREAMSUFFIX TRACESUFFIX
+#define VERSION "v2.06.18.rc3" DEBUGSUFFIX STREAMSUFFIX TRACESUFFIX
 
 #define DDTHREADLOCK 1
 
@@ -245,6 +245,7 @@ BOOL APIENTRY DllMain( HANDLE hmodule,
 		}
 		if(dxw.dwFlags16 & RECOVERSYSCURSORICONS) RestoreSystemCursors();
 		if(dxw.dwFlags12 & ADAPTMOUSESPEED) dx_ToggleMouseSpeed(FALSE);
+		if(dxw.dwFlags20 & USEDOSDEVICES) dxw.ClearFakeWinDirMapping();
 		if(pInvalidateRect) (*pInvalidateRect)(0, NULL, FALSE); // invalidate full desktop, no erase.
 		// UnmapViewOfFile(pMapping); // v2.04.83
 		UnmapViewOfFile(pStatus); // v2.04.81
@@ -726,9 +727,9 @@ static char *FlagNames[24][32] ={{
 	"ALTERNATEVRETRACE","SUPPRESSBLTFX",	"EMULATEXMIRRORING","EMULATEYMIRRORING",	
 	"GETALLMESSAGES",	"NONANTIALIASEDFONTS","MCISINGLETHREADED","FINDCLOSECHECK",	
 	"ADDSHAREDDIRPATH",	"FIXGNOMEMOVIES",	"NOPALETTEANIMATION","FILTERADAPTERWCLASS",	
-	"FORCENOPAGELOCK",	"ESCAPEDINIFILES",	"SETZOOMED",		"",	
-	"",					"",					"",					"",	
-	"",					"",					"",					"",	
+	"FORCENOPAGELOCK",	"ESCAPEDINIFILES",	"SETZOOMED",		"HOOKWINEDRAWDIB",	
+	"BYPASSD3D9QUERY",	"USEDOSDEVICES",	"NOSENDCHANGING",	"SPOOFADAPTERID",	
+	"FORCESDEFSYSPALETTE","",				"",					"",	
 	"",					"",					"",					"",	
 	},{
 	// TFlags

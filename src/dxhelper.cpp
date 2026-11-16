@@ -1904,13 +1904,13 @@ char *sFourCC(DWORD fcc)
     	case D3DFMT_BINARYBUFFER         : pRet = "BINARYBUFFER"; break;
 		default:
 			char *t=&sRet[0];
-			*(t++)='\"';
+			//*(t++)='\"';
 			for(i=0; i<4; i++){
 				c = fcc & (0xFF);
 				*(t++) = isprint(c) ? c : '.';
 				fcc = fcc >> 8;
 			}
-			*(t++)='\"';
+			//*(t++)='\"';
 			*t = 0;
 			pRet = sRet;
 			break;

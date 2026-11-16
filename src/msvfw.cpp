@@ -11,6 +11,7 @@
 #include <stdio.h>
 
 #define FCC_VIDC 0x63646976
+#define FCC_VIDS 0x73646976
 #define FCC_IV31 0x31337669
 #define FCC_IV32 0x32337669
 #define FCC_IV41 0x31347669
@@ -50,8 +51,8 @@ static HookEntryEx_Type Hooks[]={
 	{HOOK_HOT_CANDIDATE, 0, "MCIWndCreateA", (FARPROC)NULL, (FARPROC *)&pMCIWndCreateA, (FARPROC)extMCIWndCreateA}, // "Man in Black" - beware: this is NOT STDCALL!!!
 	{HOOK_HOT_CANDIDATE, 0, "ICGetDisplayFormat", (FARPROC)NULL, (FARPROC *)&pICGetDisplayFormat, (FARPROC)extICGetDisplayFormat}, // "Man in Black" - beware: this is NOT STDCALL!!!
 	{HOOK_HOT_CANDIDATE, 0, "ICDrawBegin", (FARPROC)NULL, (FARPROC *)&pICDrawBegin, (FARPROC)extICDrawBegin}, // AoE demo: not a STDCALL !!
-	{HOOK_HOT_CANDIDATE, 0, "ICOpen", (FARPROC)NULL, (FARPROC *)&pICOpen, (FARPROC)extICOpen},
-	{HOOK_HOT_CANDIDATE, 0, "ICLocate", (FARPROC)NULL, (FARPROC *)&pICLocate, (FARPROC)extICLocate},
+	{HOOK_HOT_REQUIRED,  0, "ICOpen", (FARPROC)NULL, (FARPROC *)&pICOpen, (FARPROC)extICOpen},
+	{HOOK_HOT_REQUIRED,  0, "ICLocate", (FARPROC)NULL, (FARPROC *)&pICLocate, (FARPROC)extICLocate},
 	{HOOK_HOT_CANDIDATE, 0, "DrawDibDraw", (FARPROC)NULL, (FARPROC *)&pDrawDibDraw, (FARPROC)extDrawDibDraw}, 
 	{HOOK_HOT_CANDIDATE, 0, "DrawDibBegin", (FARPROC)NULL, (FARPROC *)&pDrawDibBegin, (FARPROC)extDrawDibBegin}, 
 	{HOOK_HOT_CANDIDATE, 0, "DrawDibOpen", (FARPROC)NULL, (FARPROC *)&pDrawDibOpen, (FARPROC)extDrawDibOpen},
@@ -119,7 +120,7 @@ static char *ExplainICModeFlags(WORD f)
 } 
 #endif // DXW_NOTRACES
 
-static HIC install_codec(DWORD fccHandler, WORD flags)
+static HIC install_codec(ApiArg, DWORD fccHandler, WORD flags)
 {
 	char *dll = NULL;
 	switch(fccHandler) {
@@ -136,6 +137,7 @@ static HIC install_codec(DWORD fccHandler, WORD flags)
 	}
 	if(dll)
 	{
+		OutTraceSYS("%s: loading codec dll=%s\n", ApiRef, dll);
 		HMODULE codec = GetModuleHandleA(dll);
 		bool newload = !codec;
 		static ICOpenFunction_Type pICOpenFunction = NULL;
@@ -150,6 +152,7 @@ static HIC install_codec(DWORD fccHandler, WORD flags)
 			DRIVERPROC DriverProc = (DRIVERPROC)(*pGetProcAddress)(codec, "DriverProc");
 			if(DriverProc) {
 				if(newload) DriverProc(NULL, NULL, DRV_LOAD, 0, 0);
+				OutTraceSYS("%s: loaded codec=%#x\n", ApiRef, codec);
 				return (*pICOpenFunction)(FCC_VIDC, fccHandler, flags, (FARPROC)DriverProc);
 			}
 		}
@@ -169,12 +172,21 @@ HIC WINAPI extICOpen(DWORD fccType, DWORD fccHandler, UINT wMode)
 	HIC res;
 	ApiName("ICOpen");
 
-	OutTraceSYS("%s: fccType=0x%X(\"%s\") fccHandler=%#x wMode=%#x(%s)\n", 
+	OutTraceSYS("%s: fccType=%#x(\"%s\") fccHandler=%#x wMode=%#x(%s)\n",
 		ApiRef, fccType, sFourCC(fccType), fccHandler, wMode, ExplainICModeFlags(wMode));
 
-	res=(*pICOpen)(fccType, fccHandler, wMode);
-	if(!res && 1/*INJECTINDEO*/ && (fcctolower(fccType) == FCC_VIDC)) {
-		res = install_codec(fcctolower(fccHandler), wMode);
+	if(dxw.dwFlags20 & PREFERDXWNDCODEC){
+		res = 0;
+		if(fcctolower(fccType) == FCC_VIDC){
+			res = install_codec(ApiRef, fcctolower(fccHandler), wMode);
+		}
+		if(!res) res=(*pICOpen)(fccType, fccHandler, wMode);
+	}
+	else {
+		res=(*pICOpen)(fccType, fccHandler, wMode);
+		if(!res && (fcctolower(fccType) == FCC_VIDC)) {
+			res = install_codec(ApiRef, fcctolower(fccHandler), wMode);
+		}
 	}
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, res);
 	return res;
@@ -208,9 +220,18 @@ HIC VFWAPI extICLocate(DWORD fccType, DWORD fccHandler, LPBITMAPINFOHEADER lpbiI
 		OutTrace("< pixelxmeter=(%dx%d)\n", lpbiOut->biXPelsPerMeter, lpbiOut->biYPelsPerMeter);
 		OutTrace("< colors(used/imp)=%d/%d\n", lpbiOut->biClrUsed, lpbiOut->biClrImportant);
 	}
-	res=(*pICLocate)(fccType, fccHandler, lpbiIn, lpbiOut, wflags);
-	if(!res && 1/*INJECTINDEO*/ && (fcctolower(fccType) == FCC_VIDC)) {
-		res = install_codec(fcctolower(fccHandler), wflags);
+	if(dxw.dwFlags20 & PREFERDXWNDCODEC){
+		res = 0;
+		if(fcctolower(fccType) == FCC_VIDC){
+			res = install_codec(ApiRef, fcctolower(fccHandler), 0);
+		}
+		if(!res) res=(*pICLocate)(fccType, fccHandler, lpbiIn, lpbiOut, wflags);
+	}
+	else {
+		res=(*pICLocate)(fccType, fccHandler, lpbiIn, lpbiOut, wflags);
+		if(!res && (fcctolower(fccType) == FCC_VIDC)) {
+			res = install_codec(ApiRef, fcctolower(fccHandler), wflags);
+		}
 	}
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, res);
 	return res;
@@ -325,6 +346,24 @@ static char *ExplainMCIWndCreateFlags(DWORD c)
 	else eb[0]=0;
 	return(eb);
 }
+
+static char *ExplainICFlags(DWORD c)
+{
+	static char eb[256];
+	unsigned int l;
+	strcpy(eb,"ICDRAW_");
+	if (c & ICDRAW_ANIMATE) strcat(eb, "ANIMATE+");
+	if (c & ICDRAW_CONTINUE) strcat(eb, "CONTINUE+");
+	if (c & ICDRAW_FULLSCREEN) strcat(eb, "FULLSCREEN+");
+	if (c & ICDRAW_HDC) strcat(eb, "HDC+");
+	if (c & ICDRAW_MEMORYDC) strcat(eb, "MEMORYDC+");
+	if (c & ICDRAW_QUERY) strcat(eb, "QUERY+");
+	if (c & ICDRAW_UPDATING) strcat(eb, "UPDATING+");
+	l=strlen(eb);
+	if (l>strlen("ICDRAW_")) eb[l-1]=0; // delete last '+' if any
+	else eb[0]=0;
+	return(eb);
+}
 #endif // DXW_NOTRACES
 
 HWND extMCIWndCreateA(HWND hwndParent, HINSTANCE hInstance, DWORD dwStyle, LPCTSTR szFile)
@@ -412,11 +451,13 @@ DWORD WINAPIV extICDrawBegin(HIC hic, DWORD dwFlags, HPALETTE hpal, HWND hwnd,  
 {
 	DWORD ret;
 	ApiName("ICDrawBegin");
-	OutTraceSYS("%s: flags=%#x hpal=%#x hwnd=%#x hdc=%#x\n"
+	OutTraceSYS("%s: hic=%#x flags=%#x(%s) hpal=%#x hwnd=%#x hdc=%#x\n"
 		"> dest:{pos=(%d,%d) siz=(%dx%d)}\n"
 		"> src :{pos=(%d,%d) siz=(%dx%d)}\n"
 		"> rate=%d scale=%d\n",
-		ApiRef, dwFlags, hpal, hwnd, hdc, 
+		ApiRef, hic, 
+		dwFlags, ExplainICFlags(dwFlags),
+		hpal, hwnd, hdc, 
 		xDst, yDst, dxDst, dyDst,
 		xSrc, ySrc, dxSrc, dySrc, 
 		dwRate, dwScale);
@@ -436,7 +477,7 @@ DWORD WINAPIV extICDrawBegin(HIC hic, DWORD dwFlags, HPALETTE hpal, HWND hwnd,  
 	}
 
 	ret = (*pICDrawBegin)(hic, dwFlags, hpal, hwnd, hdc, xDst, yDst, dxDst, dyDst, lpbi, xSrc, ySrc, dxSrc, dySrc, dwRate, dwScale);
-	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
+	OutTraceSYS("%s: ret=%#x(%s)\n", ApiRef, ret, ret ? "ICERR_UNSUPPORTED" : "OK"); 
 	return ret;
 }
 

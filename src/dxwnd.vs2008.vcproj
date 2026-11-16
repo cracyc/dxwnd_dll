@@ -289,6 +289,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\D3DQuery9.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\d3dtexture.cpp"
 				>
 			</File>
@@ -554,6 +558,10 @@
 			</File>
 			<File
 				RelativePath=".\dxwcore.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\dxwcore.windir.cpp"
 				>
 			</File>
 			<File
@@ -995,6 +1003,10 @@
 			</File>
 			<File
 				RelativePath=".\d3d9blit.h"
+				>
+			</File>
+			<File
+				RelativePath=".\D3DQuery9.wrap.hpp"
 				>
 			</File>
 			<File

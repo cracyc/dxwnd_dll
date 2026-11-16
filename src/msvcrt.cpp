@@ -1,7 +1,7 @@
 #define  _CRT_SECURE_NO_WARNINGS
 
 #define _MODULE "msvcrt"
-#define TRACEALL
+//#define TRACEALL
 
 #include <windows.h>
 #include <stdio.h>
@@ -85,6 +85,10 @@ typedef errno_t (CDECL *_waccess_s_Type)(const wchar_t *, int);
 _waccess_s_Type p_waccess_s;
 errno_t CDECL ext_waccess_s(const wchar_t *, int);
 
+typedef errno_t (CDECL *_chdir_Type)(const char *);
+_chdir_Type p_chdir;
+errno_t CDECL ext_chdir(const char *);
+
 #ifdef TRACEALL
 typedef errno_t (CDECL *_chdrive_Type)(int);
 _chdrive_Type p_chdrive;
@@ -93,10 +97,6 @@ errno_t CDECL ext_chdrive(int);
 typedef int (CDECL *_getdrive_Type)(void);
 _getdrive_Type p_getdrive;
 int CDECL ext_getdrive(void);
-
-typedef errno_t (CDECL *_chdir_Type)(const char *);
-_chdir_Type p_chdir;
-errno_t CDECL ext_chdir(const char *);
 
 typedef size_t (CDECL *fread_Type)(void *, size_t, size_t, FILE *);
 fread_Type pfread;
@@ -137,10 +137,10 @@ static HookEntryEx_Type HooksFiles[]={
 	{HOOK_IAT_CANDIDATE, 0x0000, "_waccess", (FARPROC)NULL, (FARPROC *)&p_waccess, (FARPROC)ext_waccess},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_access_s", (FARPROC)NULL, (FARPROC *)&p_access_s, (FARPROC)ext_access_s},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_waccess_s", (FARPROC)NULL, (FARPROC *)&p_waccess_s, (FARPROC)ext_waccess_s},
+	{HOOK_IAT_CANDIDATE, 0x0000, "_chdir", (FARPROC)NULL, (FARPROC *)&p_chdir, (FARPROC)ext_chdir},
 #ifdef TRACEALL
 	{HOOK_IAT_CANDIDATE, 0x0000, "_getdrive", (FARPROC)NULL, (FARPROC *)&p_getdrive, (FARPROC)ext_getdrive},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_chdrive", (FARPROC)NULL, (FARPROC *)&p_chdrive, (FARPROC)ext_chdrive},
-	{HOOK_IAT_CANDIDATE, 0x0000, "_chdir", (FARPROC)NULL, (FARPROC *)&p_chdir, (FARPROC)ext_chdir},
 	{HOOK_IAT_CANDIDATE, 0x0000, "fread", (FARPROC)NULL, (FARPROC *)&pfread, (FARPROC)extfread},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_fdopen", (FARPROC)NULL, (FARPROC *)&p_fdopen, (FARPROC)ext_fdopen},
 	{HOOK_IAT_CANDIDATE, 0x0000, "_mkdir", (FARPROC)NULL, (FARPROC *)&p_mkdir, (FARPROC)ext_mkdir},
@@ -535,6 +535,21 @@ errno_t CDECL ext_waccess_s(const wchar_t *path, int mode)
 	return ret;
 }
 
+errno_t CDECL ext_chdir(const char *dirname)
+{
+	ApiName("_chdir");
+	errno_t ret;
+	OutTraceSYS("%s: dirname=\"%s\"\n", ApiRef, dirname);
+	if(dxw.dwFlags10 & (FAKEHDDRIVE | FAKECDDRIVE)) {
+		DWORD mapping;
+		dirname = dxwTranslatePathA(dirname, &mapping);
+		if(mapping != DXW_NO_FAKE) OutTraceSYS("%s: REMAP dirname=\"%ls\"\n", ApiRef, dirname);
+	}
+	ret = (*p_chdir)(dirname);
+	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
+	return ret;
+}
+
 #ifdef TRACEALL
 errno_t CDECL ext_chdrive(int drive)
 {
@@ -556,16 +571,6 @@ int CDECL ext_getdrive(void)
 	ApiName("_getdrive");
 	int ret;
 	ret = (*p_getdrive)();
-	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
-	return ret;
-}
-
-errno_t CDECL ext_chdir(const char *dirname)
-{
-	ApiName("_chdir");
-	errno_t ret;
-	OutTraceSYS("%s: dirname=\"%s\"\n", ApiRef, dirname);
-	ret = (*p_chdir)(dirname);
 	OutTraceSYS("%s: ret=%#x\n", ApiRef, ret);
 	return ret;
 }

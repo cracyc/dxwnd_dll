@@ -261,6 +261,9 @@ public: // methods
 	UINT SetDIBColors(CONST LOGPALETTE *plpal);
 	UINT GetDIBColors(HDC, UINT, UINT, const RGBQUAD *);
 	LPVOID EmulateDIB(LPVOID, const BITMAPINFO *, BITMAPINFO *, UINT);
+	char *GetFakeWinDirA();
+	WCHAR *GetFakeWinDirW();
+	void ClearFakeWinDirMapping();
 	char FakeHDDrive;
 	char FakeCDDrive;
 	char CDADrive;
@@ -431,6 +434,7 @@ public: // simple data variables
 	HWND hWndMenu;
 	char sMovieNickName[80+1];
 	char sAudioNickName[80+1];
+	char gFakeWinDriveLetter;
 
 // Implementation
 protected:
@@ -459,6 +463,7 @@ private:
 	RGBQUAD *DIBRGBQuadEntries;
 	void InitPalette();
 	DWORD dwLastRealizeTime;
+	void CreateDOSDrive(char, int);
 };
 
 class dxwSStack

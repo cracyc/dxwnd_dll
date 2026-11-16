@@ -1857,7 +1857,7 @@ DWORD WINAPI waveout_thread(LPVOID param)
 	waveoutproc = (void (WINAPI *)(HWAVEOUT, UINT, DWORD, DWORD, DWORD))((DWORD *)param)[0];
 	DWORD inst = ((DWORD *)param)[1];
 	free(param);
-	while(ret = GetMessageA(&msg, NULL, 0, 0)){
+	while(ret = (*pGetMessageA)(&msg, NULL, 0, 0)){
 	   if(ret == -1) return -1;
 		OutDebugSND("waveOutProc: hwo=%#x msg=%d(%s) instance=%#x wp=%#x lp=%#x\n",
 			msg.wParam, msg.message, 
@@ -2266,6 +2266,7 @@ MMRESULT WINAPI extwaveOutGetPosition(HWAVEOUT hwo, LPMMTIME pmmt, UINT cbmmt)
 		pmmt->u.ms = 0;
 		return 0;
 	}
+
 	ret = (*pwaveOutGetPosition)(hwo, pmmt, cbmmt);
 	if(ret) {
 		OutErrorSND("%s: ERROR res=%#x(%s)\n", ApiRef, ret, mmErrorString(ret));
